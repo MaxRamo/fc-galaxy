@@ -3,7 +3,13 @@
 /* ================= FC Galaxy — núcleo del frontend ================= */
 
 const API = {
+  local: (typeof window !== 'undefined' && window.FC_LOCAL) || null,
   async call(method, path, body) {
+    if (this.local) {
+      const res = this.local.handle(method, path, body);
+      if (res.status >= 400) throw new Error((res.data && res.data.error) || 'Error (' + res.status + ')');
+      return res.data;
+    }
     const opts = { method, headers: { 'Content-Type': 'application/json' } };
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(path, opts);
@@ -50,8 +56,8 @@ function toast(msg, type) {
   el.textContent = msg;
   $toasts.appendChild(el);
   setTimeout(() => {
-    el.style.opacity = '0'; el.style.transition = 'opacity 0.4s';
-    setTimeout(() => el.remove(), 400);
+    el.classList.add('hide');
+    setTimeout(() => el.remove(), 300);
   }, 3400);
 }
 
@@ -72,8 +78,13 @@ function confirmModal(title, htmlText, onOk, okLabel) {
     '<button class="btn" id="cm-ok">' + esc(okLabel || 'Confirmar') + '</button></div>');
   document.getElementById('cm-cancel').onclick = closeModal;
   document.getElementById('cm-ok').onclick = async () => {
+    const btn = document.getElementById('cm-ok');
+    btn.classList.add('loading'); btn.disabled = true;
     try { await onOk(); closeModal(); }
-    catch (err) { toast(err.message, 'error'); }
+    catch (err) {
+      toast(err.message, 'error');
+      btn.classList.remove('loading'); btn.disabled = false;
+    }
   };
 }
 
@@ -244,6 +255,8 @@ async function refresh() {
 }
 
 async function advanceWeek() {
+  const btn = document.getElementById('btn-advance');
+  if (btn) { btn.classList.add('loading'); btn.disabled = true; }
   try {
     const r = await API.post('/api/week/advance', {});
     refreshFrom(r);
@@ -261,6 +274,8 @@ async function advanceWeek() {
     } else {
       toast(err.message, 'error');
     }
+  } finally {
+    if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
   }
 }
 

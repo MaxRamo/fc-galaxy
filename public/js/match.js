@@ -68,6 +68,8 @@ function renderMatch() {
   const minute = lastEvent ? lastEvent.minute : 0;
   const score = [0, 0];
   for (const ev of shown) if (ev.type === 'goal') score[ev.side]++;
+  const scoreChanged = mp.prevScore && (mp.prevScore[0] !== score[0] || mp.prevScore[1] !== score[1]);
+  mp.prevScore = score;
 
   const st = match.stats;
   const statRow = (label, a, b, total) => {
@@ -109,7 +111,7 @@ function renderMatch() {
       '<div class="match-top"><button class="btn secondary small" id="btn-exit-match">\u2190 Salir</button></div>' +
       '<div class="scoreboard">' +
         '<div class="sb-team">' + badge(home, 48) + '<strong>' + esc(home.name) + '</strong></div>' +
-        '<div class="sb-score"><span id="sb-minute">' + minute + "'</span><strong>" + score[0] + ' - ' + score[1] + '</strong>' +
+        '<div class="sb-score"><span id="sb-minute">' + minute + "'</span><strong" + (scoreChanged ? ' class="pop"' : '') + '>' + score[0] + ' - ' + score[1] + '</strong>' +
         '<span class="sb-phase">' + (minute < 45 ? '1\u00aa parte' : minute < 90 ? '2\u00aa parte' : 'Final') + '</span></div>' +
         '<div class="sb-team">' + badge(away, 48) + '<strong>' + esc(away.name) + '</strong></div>' +
       '</div>' +

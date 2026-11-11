@@ -1,16 +1,21 @@
 'use strict';
 
-const crypto = require('crypto');
+const { sha256Hex } = require('./sha256');
+
+let crypto = null;
+try { crypto = require('crypto'); } catch (e) { /* navegador: se usa SHA-256 puro */ }
+
+function hashStr(s) {
+  return crypto ? crypto.createHash('sha256').update(s).digest('hex') : sha256Hex(s);
+}
 
 function txHash(tx) {
-  return crypto.createHash('sha256').update(JSON.stringify(tx)).digest('hex');
+  return hashStr(JSON.stringify(tx));
 }
 
 function hashBlock(block) {
   const { index, timestamp, prevHash, transactions } = block;
-  return crypto.createHash('sha256')
-    .update(index + '|' + timestamp + '|' + prevHash + '|' + JSON.stringify(transactions))
-    .digest('hex');
+  return hashStr(index + '|' + timestamp + '|' + prevHash + '|' + JSON.stringify(transactions));
 }
 
 function createChain() {
