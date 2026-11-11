@@ -56,8 +56,8 @@ function toast(msg, type) {
   el.textContent = msg;
   $toasts.appendChild(el);
   setTimeout(() => {
-    el.style.opacity = '0'; el.style.transition = 'opacity 0.4s';
-    setTimeout(() => el.remove(), 400);
+    el.classList.add('hide');
+    setTimeout(() => el.remove(), 300);
   }, 3400);
 }
 
@@ -78,8 +78,13 @@ function confirmModal(title, htmlText, onOk, okLabel) {
     '<button class="btn" id="cm-ok">' + esc(okLabel || 'Confirmar') + '</button></div>');
   document.getElementById('cm-cancel').onclick = closeModal;
   document.getElementById('cm-ok').onclick = async () => {
+    const btn = document.getElementById('cm-ok');
+    btn.classList.add('loading'); btn.disabled = true;
     try { await onOk(); closeModal(); }
-    catch (err) { toast(err.message, 'error'); }
+    catch (err) {
+      toast(err.message, 'error');
+      btn.classList.remove('loading'); btn.disabled = false;
+    }
   };
 }
 
@@ -250,6 +255,8 @@ async function refresh() {
 }
 
 async function advanceWeek() {
+  const btn = document.getElementById('btn-advance');
+  if (btn) { btn.classList.add('loading'); btn.disabled = true; }
   try {
     const r = await API.post('/api/week/advance', {});
     refreshFrom(r);
@@ -267,6 +274,8 @@ async function advanceWeek() {
     } else {
       toast(err.message, 'error');
     }
+  } finally {
+    if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
   }
 }
 
