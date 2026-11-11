@@ -104,16 +104,28 @@ public/                ← frontend SPA vanilla (sin framework)
 4. Juega la jornada en vivo: eventos minuto a minuto, **minimapa** con la
    posición de los jugadores y el balón, fuera de juego, **control de
    velocidad** (0.5×–4×), medidor de **pasión de la grada** (el público local
-   empuja si va perdiendo) y cambios en el descanso y en el minuto 75.
+   empuja si va perdiendo) y cambios en el descanso. Los partidos se juegan
+   hasta el minuto 90 **más tiempo añadido** (1–6 min según goles, cambios,
+   tarjetas y lesiones de la segunda parte, anunciado con un evento ⏱️).
    O simula el resultado directamente.
+5. Entrena y desarrolla: cada mejora de atributo en el entrenamiento semanal
+   y cada buen partido (nota ≥ 7.5 o gol) genera **puntos de habilidad**.
+   En el perfil del jugador puedes gastarlos en su **árbol de habilidades**
+   por posición (3 tiers con requisitos previos): las skills desbloqueadas
+   mejoran atributos concretos y se reflejan en el **gráfico de radar**
+   (ritmo, tiro, pase, regate, defensa, físico; porteros con sus 4
+   atributos propios).
+6. Avanza la semana: finanzas, entrenamientos, cantera, mercado de la IA,
+   ofertas, recuperación de lesionados, sincronización de wallets y **nuevas
+   ofertas de patrocinio**.
 5. Avanza la semana: finanzas, entrenamientos, cantera, mercado de la IA,
    ofertas, recuperación de lesionados, sincronización de wallets y **nuevas
    ofertas de patrocinio**.
-6. Negocia patrocinios: camiseta y gradas del estadio (aceptar, contraoferta
+7. Negocia patrocinios: camiseta y gradas del estadio (aceptar, contraoferta
    con riesgo de que retiren la oferta, rechazar). Los contratos se abonan
    semanalmente y caducan al terminar las temporadas firmadas.
-7. Ficha, vende, renueva contratos, mejora instalaciones, promociona canteranos.
-8. Tras 22 jornadas: premios, reparto de taquilla por posición y nueva
+8. Ficha, vende, renueva contratos, mejora instalaciones, promociona canteranos.
+9. Tras 22 jornadas: premios, reparto de taquilla por posición y nueva
    temporada (envejecimiento, retiradas, contratos que expiran, agentes libres,
    vencimiento de patrocinios).
 

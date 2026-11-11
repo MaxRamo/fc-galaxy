@@ -188,9 +188,18 @@ function runSegment(state, match, untilMinute) {
   const hs = teamStrength(home, match.lineups.home, players, true);
   const as = teamStrength(away, match.lineups.away, players, false);
 
-  while (match.minute < untilMinute && !match.finished) {
+  const stoppageOf = () => (untilMinute >= 90 ? (match._stoppage || 0) : 0);
+  while (match.minute < untilMinute + stoppageOf() && !match.finished) {
     match.minute++;
     const min = match.minute;
+
+    if (min === 90 && untilMinute >= 90 && !match._stoppageAnnounced) {
+      match._stoppageAnnounced = true;
+      const interruptions = match.events.filter(e =>
+        ['goal', 'sub', 'yellow', 'red', 'injury'].includes(e.type) && e.minute > 45).length;
+      match._stoppage = Math.max(1, Math.min(6, 1 + Math.ceil(interruptions / 4)));
+      pushEvent(match, { type: 'added', text: '\u23f1\ufe0f Se jugar\u00e1n ' + match._stoppage + ' minutos de tiempo a\u00f1adido' });
+    }
 
     const midDiff = hs.midfield - as.midfield;
     const homePoss = clamp(50 + midDiff * 0.35, 30, 70);
@@ -386,7 +395,8 @@ function ratingForPlayer(match, playerId, side) {
 
 function finishMatch(state, match) {
   if (match.finished) return;
-  match.minute = 90;
+  match.minute = Math.max(match.minute, 90);
+  match.stoppage = match._stoppage || 0;
   match.finished = true;
   match._yellowIds = new Set(match.events.filter(e => e.type === 'yellow').map(e => e.playerId).filter(Boolean));
   match._redIds = new Set(match.events.filter(e => e.type === 'red').map(e => e.playerId).filter(Boolean));
@@ -411,6 +421,10 @@ function finishMatch(state, match) {
       p.stats.ratedApps++;
       p.stats.avgRating = Math.round((p.stats.ratingSum / p.stats.ratedApps) * 100) / 100;
       p.form = clamp(p.form * 0.7 + (rating - 6.5) * 1.2, -3, 3);
+      let sp = 0;
+      if (rating >= 7.5) sp += 1;
+      if ((match.goals[id] || 0) > 0) sp += 1;
+      if (sp > 0) p.skillPoints = (p.skillPoints || 0) + sp;
       if (p._matchRed) { p.ban = Math.max(p.ban, 2); p.stats.red++; p._matchRed = false; }
       if (p._matchYellow) {
         p.stats.yellow++;

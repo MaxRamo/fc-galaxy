@@ -219,6 +219,8 @@ function renderMatch() {
   const shown = match.events.slice(0, mp.revealed);
   const lastEvent = shown[shown.length - 1];
   const minute = lastEvent ? lastEvent.minute : 0;
+  const minuteLabel = minute > 90 ? "90+" + (minute - 90) + "'" : minute + "'";
+  const phaseLabel = minute > 90 ? '⏱️ Tiempo añadido' : minute < 45 ? '1ª parte' : minute < 90 ? '2ª parte' : 'Final';
   const score = scoreOfShown(match, mp);
   const scoreChanged = mp.prevScore && (mp.prevScore[0] !== score[0] || mp.prevScore[1] !== score[1]);
   mp.prevScore = score;
@@ -235,7 +237,7 @@ function renderMatch() {
   let feed = '';
   for (const ev of shown) {
     if (ev.type === 'checkpoint') continue;
-    const cls = { goal: 'ev-goal', yellow: 'ev-yellow', red: 'ev-red', injury: 'ev-inj', sub: 'ev-sub', save: 'ev-save', miss: 'ev-miss', offside: 'ev-offside', crowd: 'ev-crowd' }[ev.type] || '';
+    const cls = { goal: 'ev-goal', yellow: 'ev-yellow', red: 'ev-red', injury: 'ev-inj', sub: 'ev-sub', save: 'ev-save', miss: 'ev-miss', offside: 'ev-offside', crowd: 'ev-crowd', added: 'ev-added' }[ev.type] || '';
     feed += '<div class="event ' + cls + '">' +
       '<span class="ev-min">' + ev.minute + "'</span><span>" + esc(ev.text) + '</span></div>';
   }
@@ -253,7 +255,7 @@ function renderMatch() {
     controls = '<div class="tactical-panel"><p class="ft-result">' + res + '</p>' +
       '<button class="btn big" id="btn-after-match">Avanzar semana ⏩</button></div>';
   } else {
-    controls = '<div class="tactical-panel"><button class="btn" id="btn-continue">▶️ Continuar (' + minute + "')</button>" +
+    controls = '<div class="tactical-panel"><button class="btn" id="btn-continue">▶️ Continuar (' + minuteLabel + ')</button>' +
       '<button class="btn secondary" id="btn-skip">⏩ Ir al final</button></div>';
   }
 
@@ -269,8 +271,8 @@ function renderMatch() {
         '<div class="speed-controls"><span class="sc-label">Velocidad</span>' + speedBtns + '</div></div>' +
       '<div class="scoreboard">' +
         '<div class="sb-team">' + badge(home, 48) + '<strong>' + esc(home.name) + '</strong></div>' +
-        '<div class="sb-score"><span id="sb-minute">' + minute + "'</span><strong" + (scoreChanged ? ' class="pop"' : '') + '>' + score[0] + ' - ' + score[1] + '</strong>' +
-        '<span class="sb-phase">' + (minute < 45 ? '1ª parte' : minute < 90 ? '2ª parte' : 'Final') + '</span></div>' +
+        '<div class="sb-score"><span id="sb-minute">' + minuteLabel + '</span><strong' + (scoreChanged ? ' class="pop"' : '') + '>' + score[0] + ' - ' + score[1] + '</strong>' +
+        '<span class="sb-phase">' + phaseLabel + '</span></div>' +
         '<div class="sb-team">' + badge(away, 48) + '<strong>' + esc(away.name) + '</strong></div>' +
       '</div>' +
       '<div class="match-grid three">' +
@@ -377,8 +379,7 @@ function bindTacticalPanel(match, userSide) {
       mp.subs = [];
       mp.done = false;
       render();
-      if (!r.match.finished) startPlayback();
-      else { mp.done = true; render(); }
+      startPlayback();
     } catch (err) {
       toast(err.message, 'error');
       mp.subs = [];
