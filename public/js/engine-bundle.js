@@ -357,21 +357,73 @@ module.exports = { Rng };
   "server/engine/names.js": function (exports, require, module) {
 'use strict';
 
-const FIRST_NAMES = [
-  'Alejandro', 'Mateo', 'Diego', 'Lucas', 'Hugo', 'Pablo', 'Martín', 'Leo', 'Daniel', 'Pau',
-  'Álvaro', 'Adrián', 'David', 'Javier', 'Sergio', 'Carlos', 'Marcos', 'Iker', 'Bruno', 'Izan',
-  'Enzo', 'Liam', 'Noah', 'Rafael', 'Julián', 'Nico', 'Aitor', 'Unai', 'Gonzalo', 'Rodrigo',
-  'Marco', 'Kevin', 'Yusuf', 'Amir', 'Luka', 'Ivan', 'Milan', 'Tomas', 'Pierre', 'Antoine',
-  'Kylian', 'Ousmane', 'Moussa', 'Ibrahim', 'Karim', 'Youssef', 'Rafinha', 'João', 'Diogo', 'Rúben'
+const COUNTRIES = [
+  {
+    code: 'es', name: 'España', flag: '🇪🇸',
+    first: ['Alejandro', 'Mateo', 'Diego', 'Lucas', 'Hugo', 'Pablo', 'Martín', 'Daniel', 'Sergio', 'Álvaro', 'Adrián', 'Javier', 'Iker', 'Unai', 'Gonzalo', 'Rodrigo'],
+    last: ['García', 'Martínez', 'López', 'Sánchez', 'Pérez', 'Gómez', 'Fernández', 'Ruiz', 'Díaz', 'Moreno', 'Álvarez', 'Romero', 'Navarro', 'Torres', 'Ramos', 'Iglesias']
+  },
+  {
+    code: 'ar', name: 'Argentina', flag: '🇦🇷',
+    first: ['Lautaro', 'Julián', 'Enzo', 'Nicolás', 'Facundo', 'Thiago', 'Valentín', 'Emiliano', 'Cristian', 'Matías', 'Franco', 'Agustín', 'Joaquín', 'Bruno', 'Santiago', 'Gonzalo'],
+    last: ['Fernández', 'Rodríguez', 'González', 'Álvarez', 'Romero', 'Martínez', 'Paredes', 'Molina', 'Correa', 'Domínguez', 'Palacios', 'Mac Allister', 'Lo Celso', 'Pezzella', 'Ocampos', 'Garnacho']
+  },
+  {
+    code: 'br', name: 'Brasil', flag: '🇧🇷',
+    first: ['João', 'Pedro', 'Gabriel', 'Lucas', 'Matheus', 'Rafael', 'Vinícius', 'Rodrygo', 'Éder', 'Bruno', 'Caio', 'Everton', 'Wesley', 'Danilo', 'Igor', 'Murilo'],
+    last: ['Silva', 'Santos', 'Oliveira', 'Souza', 'Pereira', 'Costa', 'Almeida', 'Ferreira', 'Ribeiro', 'Barbosa', 'Cardoso', 'Gomes', 'Martins', 'Rocha', 'Nunes', 'Lima']
+  },
+  {
+    code: 'en', name: 'Inglaterra', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+    first: ['Harry', 'Jack', 'Jude', 'Bukayo', 'Declan', 'Marcus', 'Phil', 'Ollie', 'Reece', 'Trent', 'Callum', 'Mason', 'Jarrod', 'Dominic', 'Cole', 'Levi'],
+    last: ['Smith', 'Jones', 'Walker', 'Foden', 'Rice', 'Kane', 'Sterling', 'Grealish', 'Watkins', 'Trippier', 'Alexander-Arnold', 'Maddison', 'Bowen', 'Wilson', 'Palmer', 'Colwill']
+  },
+  {
+    code: 'fr', name: 'Francia', flag: '🇫🇷',
+    first: ['Kylian', 'Antoine', 'Ousmane', 'Aurélien', 'Jules', 'Théo', 'Randal', 'Christopher', 'Warren', 'Eduardo', 'Youssouf', 'Lucas', 'Benjamin', 'Manu', 'Adrien', 'Loïc'],
+    last: ['Dubois', 'Lefèvre', 'Moreau', 'Girard', 'Kolo Muani', 'Dembélé', 'Camavinga', 'Konaté', 'Upamecano', 'Zaïre-Emery', 'Fofana', 'Hernández', 'Pavard', 'Rabiot', 'Thuram', 'Nkunku']
+  },
+  {
+    code: 'de', name: 'Alemania', flag: '🇩🇪',
+    first: ['Jamal', 'Florian', 'Kai', 'Joshua', 'Leon', 'Serge', 'Niklas', 'Robin', 'Maximilian', 'Felix', 'Lukas', 'Jonas', 'Tim', 'Marvin', 'Nico', 'Elias'],
+    last: ['Müller', 'Schmidt', 'Wirtz', 'Havertz', 'Kimmich', 'Goretzka', 'Süle', 'Gosens', 'Mittelstädt', 'Nmecha', 'Klain', 'Hofmann', 'Kleindienst', 'Wolf', 'Schlotterbeck', 'Grimaldo']
+  },
+  {
+    code: 'it', name: 'Italia', flag: '🇮🇹',
+    first: ['Nicolò', 'Federico', 'Lorenzo', 'Giacomo', 'Davide', 'Alessandro', 'Matteo', 'Riccardo', 'Gianluca', 'Samuele', 'Andrea', 'Marco', 'Simone', 'Tommaso', 'Michele', 'Cristian'],
+    last: ['Rossi', 'Ferrari', 'Bianchi', 'Barella', 'Chiesa', 'Pellegrini', 'Frattesi', 'Scamacca', 'Zaniolo', 'Bastoni', 'Cambiaso', 'Retegui', 'Ricci', 'Baldanzi', 'Colombo', 'Gatti']
+  },
+  {
+    code: 'pt', name: 'Portugal', flag: '🇵🇹',
+    first: ['João', 'Diogo', 'Rúben', 'Gonçalo', 'Bernardo', 'Rafael', 'Pedro', 'Nuno', 'Vitinha', 'Fábio', 'Otávio', 'Tiago', 'Ricardo', 'André', 'Daniel', 'Francisco'],
+    last: ['Silva', 'Fernandes', 'Neves', 'Ramos', 'Dias', 'Leão', 'Dalot', 'Trincão', 'Conceição', 'Semedo', 'Moutinho', 'Palhinha', 'Veiga', 'Inácio', 'Todibo', 'Costa']
+  },
+  {
+    code: 'nl', name: 'Países Bajos', flag: '🇳🇱',
+    first: ['Cody', 'Virgil', 'Frenkie', 'Memphis', 'Xavi', 'Ryan', 'Jurriën', 'Denzel', 'Steven', 'Teun', 'Micky', 'Donyell', 'Quinten', 'Brian', 'Joshua', 'Lutsharel'],
+    last: ['Gakpo', 'Van Dijk', 'De Jong', 'Depay', 'Simons', 'Gravenberch', 'Timber', 'Dumfries', 'Bergwijn', 'Koopmeiners', 'Van de Ven', 'Malen', 'Brobbey', 'Zirkzee', 'Geertruida', 'Weghorst']
+  },
+  {
+    code: 'uy', name: 'Uruguay', flag: '🇺🇾',
+    first: ['Federico', 'Darwin', 'Facundo', 'Manuel', 'Nicolás', 'Rodrigo', 'Brian', 'Maxi', 'Agustín', 'Emiliano', 'Sebastián', 'Mathías', 'Diego', 'Santiago', 'Cristian', 'Ignacio'],
+    last: ['Valverde', 'Núñez', 'Pellistri', 'Ugarte', 'De la Cruz', 'Bentancur', 'Araújo', 'Olivera', 'Sánchez', 'Canobbio', 'Gómez', 'Cáceres', 'Rodríguez', 'Viña', 'Rossi', 'Bueno']
+  },
+  {
+    code: 'mx', name: 'México', flag: '🇲🇽',
+    first: ['Santiago', 'Hirving', 'Alexis', 'Edson', 'César', 'Luis', 'Diego', 'Roberto', 'Julián', 'Uriel', 'Jesús', 'Erick', 'Jorge', 'Kevin', 'Israel', 'Obed'],
+    last: ['Giménez', 'Lozano', 'Vega', 'Álvarez', 'Montes', 'Chávez', 'Lainez', 'Alvarado', 'Quiñones', 'Antuna', 'Ochoa', 'Reyes', 'Vargas', 'Romo', 'Sandoval', 'Márquez']
+  },
+  {
+    code: 'ng', name: 'Nigeria', flag: '🇳🇬',
+    first: ['Victor', 'Samuel', 'Ademola', 'Wilfred', 'Alex', 'Calvin', 'Frank', 'Kelechi', 'Terem', 'Bright', 'Zaidu', 'Peter', 'Cyriel', 'Joe', 'Bruno', 'Alhassan'],
+    last: ['Osimhen', 'Chukwueze', 'Lookman', 'Ndidi', 'Iwobi', 'Bassey', 'Onyeka', 'Aina', 'Moffi', 'Osayi-Samuel', 'Sanusi', 'Ebiowei', 'Dessers', 'Aribo', 'Onomacho', 'Yusuf']
+  }
 ];
 
-const LAST_NAMES = [
-  'García', 'Martínez', 'López', 'Sánchez', 'Pérez', 'Gómez', 'Fernández', 'Ruiz', 'Díaz', 'Moreno',
-  'Álvarez', 'Romero', 'Navarro', 'Torres', 'Domínguez', 'Vargas', 'Castillo', 'Ortiz', 'Ramos', 'Iglesias',
-  'Herrera', 'Medina', 'Aguilar', 'Cabrera', 'Reyes', 'Silva', 'Costa', 'Santos', 'Oliveira', 'Pereira',
-  'Kovač', 'Novak', 'Horvat', 'Marić', 'Dubois', 'Lefèvre', 'Moreau', 'Girard', 'Mensah', 'Diallo',
-  'Traoré', 'Keita', 'Okafor', 'Hassan', 'Farouk', 'Yilmaz', 'Demir', 'Rossi', 'Ferrari', 'Bianchi'
-];
+const COUNTRY_MAP = {};
+for (const c of COUNTRIES) COUNTRY_MAP[c.code] = c;
+
+const DEFAULT_COUNTRY = 'es';
 
 const CITIES = [
   'Vallebravo', 'Puerto Lumen', 'San Adriano', 'Costa Doria', 'Monte Real', 'Río Verde',
@@ -386,17 +438,30 @@ const SPONSOR_NAMES = [
   'Zapatón', 'Café Andino', 'SeguraSeg', 'PixelPlay', 'Orbitel'
 ];
 
-function randomName(rng) {
-  return rng.pick(FIRST_NAMES) + ' ' + rng.pick(LAST_NAMES);
+const SPONSOR_SECTORS = [
+  'Aerolíneas', 'Banca', 'Bebidas', 'Telecomunicaciones', 'Retail', 'Fintech',
+  'Energía', 'Deporte', 'Café', 'Seguros', 'Videojuegos', 'Telefonía'
+];
+
+function countryOf(code) {
+  return COUNTRY_MAP[code] || COUNTRY_MAP[DEFAULT_COUNTRY];
 }
 
-module.exports = { FIRST_NAMES, LAST_NAMES, CITIES, CLUB_SUFFIX, SPONSOR_NAMES, randomName };
+function randomName(rng, countryCode) {
+  const c = countryOf(countryCode);
+  return rng.pick(c.first) + ' ' + rng.pick(c.last);
+}
+
+module.exports = {
+  COUNTRIES, COUNTRY_MAP, DEFAULT_COUNTRY, CITIES, CLUB_SUFFIX,
+  SPONSOR_NAMES, SPONSOR_SECTORS, randomName, countryOf
+};
 
 },
   "server/engine/player.js": function (exports, require, module) {
 'use strict';
 
-const { randomName } = require('./names');
+const { randomName, DEFAULT_COUNTRY } = require('./names');
 
 const POSITIONS = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'];
 
@@ -443,6 +508,7 @@ function generatePlayer(rng, opts) {
   const pos = opts.pos || rng.pick(POSITIONS.filter(p => p !== 'GK'));
   const age = opts.age != null ? opts.age : rng.int(17, 34);
   const level = opts.level != null ? opts.level : 60;
+  const country = opts.country || DEFAULT_COUNTRY;
 
   let base = clamp(rng.gauss(level, 7), 30, 92);
 
@@ -464,7 +530,8 @@ function generatePlayer(rng, opts) {
   const growthLeft = age <= 23 ? rng.int(6, 22) : age <= 27 ? rng.int(2, 10) : rng.int(0, 3);
   const player = {
     id: rng.id('p'),
-    name: randomName(rng),
+    name: randomName(rng, country),
+    nationality: country,
     pos,
     age,
     attrs,
@@ -569,8 +636,13 @@ module.exports = {
 'use strict';
 
 const { Rng } = require('./rng');
-const { CITIES, CLUB_SUFFIX, SPONSOR_NAMES, randomName } = require('./names');
+const { CITIES, CLUB_SUFFIX, SPONSOR_NAMES, randomName, countryOf, DEFAULT_COUNTRY } = require('./names');
 const { generatePlayer, computeValue, clamp } = require('./player');
+
+const CREST_SHAPES = ['shield', 'circle', 'hex'];
+const CREST_PATTERNS = ['solid', 'stripes', 'halves', 'sash', 'hoops'];
+const CREST_FIGURES = ['none', 'star', 'ball', 'crown'];
+const KIT_PATTERNS = ['solid', 'stripes', 'hoops', 'sash'];
 
 const FORMATIONS = {
   '4-4-2': { GK: 1, CB: 2, LB: 1, RB: 1, DM: 0, CM: 2, AM: 0, LW: 1, RW: 1, ST: 2 },
@@ -590,16 +662,33 @@ const SQUAD_TEMPLATE = [
   'ST', 'ST', 'ST'
 ];
 
-function generateClubSquad(rng, level, season) {
+function generateClubSquad(rng, level, season, country) {
+  const c = country || DEFAULT_COUNTRY;
   const squad = [];
   for (const pos of SQUAD_TEMPLATE) {
     const ageRoll = rng.float();
     const age = ageRoll < 0.22 ? rng.int(17, 20) : ageRoll < 0.62 ? rng.int(21, 27) : ageRoll < 0.88 ? rng.int(28, 31) : rng.int(32, 36);
-    const p = generatePlayer(rng, { pos, age, level: level + rng.range(-4, 4) });
+    const nat = rng.chance(0.18) ? null : c;
+    const p = generatePlayer(rng, { pos, age, level: level + rng.range(-4, 4), country: nat || undefined });
     p.contract.until = season + rng.int(1, 4);
     squad.push(p);
   }
   return squad;
+}
+
+function generateCrest(rng, primaryColor, secondaryColor, shortName) {
+  return {
+    shape: rng.pick(CREST_SHAPES),
+    pattern: rng.pick(CREST_PATTERNS),
+    figure: rng.pick(CREST_FIGURES),
+    c1: primaryColor,
+    c2: secondaryColor,
+    initials: shortName
+  };
+}
+
+function generateKit(rng, primaryColor, secondaryColor) {
+  return { pattern: rng.pick(KIT_PATTERNS), c1: primaryColor, c2: secondaryColor };
 }
 
 function createClub(rng, opts) {
@@ -620,6 +709,10 @@ function createClub(rng, opts) {
     trainingFocus: 'balanced',
     playerTraining: {},
     sponsor: { name: rng.pick(SPONSOR_NAMES), income: 0 },
+    standSponsors: {},
+    crest: opts.crest || generateCrest(rng, opts.primaryColor || '#c8102e', opts.secondaryColor || '#ffffff', (opts.shortName || opts.name.slice(0, 3).toUpperCase())),
+    kit: opts.kit || generateKit(rng, opts.primaryColor || '#c8102e', opts.secondaryColor || '#ffffff'),
+    country: opts.country || DEFAULT_COUNTRY,
     lineup: [],
     tactics: { pressing: 'medium', width: 'normal' },
     isUser: !!opts.isUser
@@ -638,7 +731,10 @@ function aiClubName(rng, used) {
   return fallback;
 }
 
-module.exports = { FORMATIONS, SQUAD_TEMPLATE, generateClubSquad, createClub, aiClubName };
+module.exports = {
+  FORMATIONS, SQUAD_TEMPLATE, generateClubSquad, createClub, aiClubName,
+  generateCrest, generateKit, CREST_SHAPES, CREST_PATTERNS, CREST_FIGURES, KIT_PATTERNS
+};
 
 },
   "server/engine/match.js": function (exports, require, module) {
@@ -842,7 +938,13 @@ function runSegment(state, match, untilMinute) {
     match.stats.possession[1] = 100 - match.stats.possession[0];
 
     const homeAttacking = homePoss / 100 * hs.attack / (hs.attack + as.defense);
-    const chanceProb = 0.21 * (homeAttacking * 2);
+    const homeLosing = match.score[0] < match.score[1];
+    if (min === 60 && homeLosing && !match._crowdPushed) {
+      match._crowdPushed = true;
+      pushEvent(match, { type: 'crowd', side: 0, text: '🔥 La grada local se echa el equipo a la espalda y empuja' });
+    }
+    const crowdBoost = (min >= 60 && homeLosing) ? 1.12 : 1;
+    const chanceProb = 0.21 * (homeAttacking * 2) * crowdBoost;
     if (rng.chance(chanceProb)) createChance(state, match, hs, as, 0);
     const awayAttacking = (1 - homePoss / 100) * as.attack / (as.attack + hs.defense);
     if (rng.chance(0.21 * (awayAttacking * 2))) createChance(state, match, as, hs, 1);
@@ -892,6 +994,10 @@ function createChance(state, match, attS, defS, side) {
   const gk = gkId ? players[gkId] : null;
 
   const shooterP = players[shooter.id];
+  if (rng.chance(0.08)) {
+    pushEvent(match, { type: 'offside', side, playerId: shooter.id, playerName: shooterP.name, text: '🚩 Fuera de juego de ' + shooterP.name });
+    return;
+  }
   const quality = clamp(0.25 + (shooterP.attrs.shooting - 55) / 90 + (attS.attack - defS.defense) / 130 + rng.range(-0.08, 0.08), 0.05, 0.75);
   const gkFactor = gk ? clamp(0.9 + (gk.attrs.reflexes - 60) / 220, 0.75, 1.05) : 1;
   const roll = rng.float();
@@ -1158,13 +1264,19 @@ function weeklyFinances(state, clubId) {
   const sponsor = club.sponsor.income;
   addLedger(state, clubId, { concept: `Patrocinio (${club.sponsor.name})`, amount: sponsor, category: 'patrocinio' });
 
+  let standsIncome = 0;
+  for (const [key, deal] of Object.entries(club.standSponsors || {})) {
+    standsIncome += deal.weekly;
+    addLedger(state, clubId, { concept: `Patrocinio de ${deal.standLabel || key} (${deal.name})`, amount: deal.weekly, category: 'patrocinio' });
+  }
+
   const merch = Math.round(club.fanbase * 0.0022 * (0.85 + club.reputation / 200));
   addLedger(state, clubId, { concept: 'Merchandising y abonos', amount: merch, category: 'comercial' });
 
   const maintenance = Math.round(club.stadium.capacity * 0.09 + (club.facilities.training + club.facilities.youth + club.facilities.medical) * 14000);
   addLedger(state, clubId, { concept: 'Mantenimiento de instalaciones', amount: -maintenance, category: 'instalaciones' });
 
-  return { wages, sponsor, merch, maintenance };
+  return { wages, sponsor, standsIncome, merch, maintenance };
 }
 
 function gateReceipts(state, clubId, opponentClubId) {
@@ -1218,7 +1330,8 @@ function weeklyYouth(state, clubId) {
     const p = generatePlayer(rng, {
       pos: rng.pick(YOUTH_POSITIONS),
       age: rng.int(15, 18),
-      level: clamp(42 + qualityBonus + rng.range(-4, 8), 30, 72)
+      level: clamp(42 + qualityBonus + rng.range(-4, 8), 30, 72),
+      country: club.country
     });
     p.potential = clamp(p.potential + Math.round(qualityBonus / 2), 40, 96);
     p.origin = 'cantera';
@@ -1384,25 +1497,201 @@ module.exports = {
 };
 
 },
+  "server/engine/sponsors.js": function (exports, require, module) {
+'use strict';
+
+/* Patrocinadores: ofertas semanales para camiseta y gradas del estadio,
+   con negociación (aceptar / contraoferta / rechazar). Los ingresos firmados
+   se abonan semanalmente desde finance.weeklyFinances. */
+
+const { clamp } = require('./player');
+
+const STANDS = [
+  { key: 'norte', label: 'Fondo Norte' },
+  { key: 'sur', label: 'Fondo Sur' },
+  { key: 'este', label: 'Lateral Este' },
+  { key: 'oeste', label: 'Tribuna Oeste' }
+];
+
+const KINDS = ['shirt', 'stand'];
+
+function sponsorBaseIncome(state, club) {
+  return Math.round((club.reputation * 9500 + club.fanbase * 0.0045) / 500) * 500;
+}
+
+function generateOffers(state) {
+  const club = state.clubs[state.userClubId];
+  if (!club) return [];
+  const rng = state.rng;
+  const { SPONSOR_NAMES, SPONSOR_SECTORS } = require('./names');
+  const offers = [];
+  const usedNames = new Set();
+  const pickName = () => {
+    for (let i = 0; i < 30; i++) {
+      const n = rng.pick(SPONSOR_NAMES) + (rng.chance(0.3) ? ' ' + rng.pick(SPONSOR_SECTORS) : '');
+      if (!usedNames.has(n)) { usedNames.add(n); return n; }
+    }
+    return 'Patrocinador ' + rng.int(2, 99);
+  };
+
+  const base = sponsorBaseIncome(state, club);
+
+  if (!club.sponsor.deal) {
+    offers.push({
+      id: 'off-' + rng.id('s'),
+      kind: 'shirt',
+      name: pickName(),
+      weekly: Math.round(base * rng.range(0.85, 1.25) / 500) * 500,
+      seasons: rng.int(1, 3),
+      bonus: Math.round(base * rng.range(0.4, 1.1) / 500) * 500,
+      minRep: 0,
+      flex: rng.range(0.08, 0.22),
+      expiresWeek: state.week + 2
+    });
+  }
+
+  const freeStands = STANDS.filter(s => !club.standSponsors[s.key]);
+  for (const stand of rng.shuffle(freeStands).slice(0, 2)) {
+    offers.push({
+      id: 'off-' + rng.id('s'),
+      kind: 'stand',
+      stand: stand.key,
+      standLabel: stand.label,
+      name: pickName(),
+      weekly: Math.round(base * rng.range(0.08, 0.2) / 100) * 100,
+      seasons: rng.int(1, 2),
+      bonus: Math.round(base * rng.range(0.05, 0.18) / 100) * 100,
+      minRep: 0,
+      flex: rng.range(0.1, 0.3),
+      expiresWeek: state.week + 2
+    });
+  }
+
+  return offers;
+}
+
+function refreshOffers(state) {
+  state.sponsorOffers = (state.sponsorOffers || []).filter(o => o.expiresWeek > state.week);
+  const current = new Set((state.sponsorOffers || []).map(o => o.kind + ':' + (o.stand || '')));
+  const fresh = generateOffers(state).filter(o => !current.has(o.kind + ':' + (o.stand || '')));
+  state.sponsorOffers = state.sponsorOffers.concat(fresh).slice(0, 6);
+  return state.sponsorOffers;
+}
+
+function negotiate(state, offerId, action, counterPct) {
+  const club = state.clubs[state.userClubId];
+  const idx = (state.sponsorOffers || []).findIndex(o => o.id === offerId);
+  if (idx === -1) throw new Error('Oferta de patrocinio no disponible o caducada');
+  const offer = state.sponsorOffers[idx];
+  const rng = state.rng;
+
+  if (action === 'reject') {
+    state.sponsorOffers.splice(idx, 1);
+    return { status: 'rejected', message: 'Oferta de ' + offer.name + ' rechazada.' };
+  }
+
+  if (action === 'counter') {
+    const pct = clamp(Number(counterPct) || 0, 5, 60);
+    const greed = pct / 100;
+    const successChance = clamp(0.9 - greed * 1.6 - (offer.flex - 0.15) * 0.5 + (club.reputation - 50) * 0.004, 0.05, 0.85);
+    if (rng.chance(successChance)) {
+      offer.weekly = Math.round(offer.weekly * (1 + greed) / 100) * 100;
+      offer.bonus = Math.round(offer.bonus * (1 + greed * 0.5) / 100) * 100;
+      offer.flex = Math.max(0.02, offer.flex - greed * 0.4);
+      return { status: 'countered', offer, message: offer.name + ' acepta tus términos: ' + fmt(offer.weekly) + ' FCG/semana. Confirma para firmar.' };
+    }
+    state.sponsorOffers.splice(idx, 1);
+    return { status: 'walked', message: offer.name + ' considera excesiva tu petición y retira la oferta.' };
+  }
+
+  if (action !== 'accept') throw new Error('Acción de negociación inválida');
+
+  const seasons = offer.seasons;
+  const deal = {
+    name: offer.name,
+    kind: offer.kind,
+    stand: offer.stand || null,
+    weekly: offer.weekly,
+    untilSeason: state.season + seasons - 1,
+    signedSeason: state.season,
+    signedWeek: state.week
+  };
+  if (offer.kind === 'shirt') {
+    club.sponsor = { name: offer.name, income: offer.weekly, deal };
+  } else {
+    club.standSponsors[offer.stand] = deal;
+  }
+  state.sponsorOffers.splice(idx, 1);
+  return { status: 'signed', deal, message: 'Contrato firmado con ' + offer.name + ': ' + fmt(offer.weekly) + ' FCG/semana hasta la temporada ' + deal.untilSeason + '.' };
+}
+
+function expireDeals(state, clubId) {
+  const club = state.clubs[clubId];
+  if (!club) return [];
+  const expired = [];
+  if (club.sponsor.deal && club.sponsor.deal.untilSeason < state.season) {
+    expired.push('camiseta (' + club.sponsor.name + ')');
+    club.sponsor = { name: club.sponsor.name, income: Math.round(sponsorBaseIncome(state, club) * 0.4 / 500) * 500, deal: null };
+  }
+  for (const [key, deal] of Object.entries(club.standSponsors || {})) {
+    if (deal.untilSeason < state.season) {
+      expired.push(deal.standLabel || key);
+      delete club.standSponsors[key];
+    }
+  }
+  return expired;
+}
+
+function fmt(v) {
+  if (Math.abs(v) >= 1000000) return (v / 1000000).toFixed(2) + 'M';
+  if (Math.abs(v) >= 1000) return Math.round(v / 1000) + 'K';
+  return String(Math.round(v));
+}
+
+module.exports = { STANDS, KINDS, generateOffers, refreshOffers, negotiate, expireDeals, sponsorBaseIncome };
+
+},
   "server/engine/game.js": function (exports, require, module) {
 'use strict';
 
 const { Rng } = require('./rng');
-const { CITIES, randomName } = require('./names');
+const { CITIES, randomName, DEFAULT_COUNTRY, countryOf } = require('./names');
 const { generatePlayer, computeValue, wageDemand, growthForPlayer, applyGrowth, clamp } = require('./player');
-const { generateClubSquad, createClub, aiClubName, FORMATIONS } = require('./club');
+const { generateClubSquad, createClub, aiClubName, FORMATIONS, generateCrest, generateKit } = require('./club');
 const { TEAMS, PRIZE_MONEY, buildFixtures, computeTable, currentRoundFixtures, allRoundMatchesPlayed } = require('./league');
 const matchEngine = require('./match');
 const finance = require('./finance');
 const youth = require('./youth');
 const market = require('./market');
+const sponsors = require('./sponsors');
 
 const chainMod = require('../../blockchain/chain');
 const tokenMod = require('../../blockchain/token');
 const nftMod = require('../../blockchain/nft');
 const contractMod = require('../../blockchain/contract');
 
-const SAVE_VERSION = 3;
+const SAVE_VERSION = 4;
+
+/* Rellena los campos añadidos en versiones posteriores para que las partidas
+   antiguas (v3) sigan funcionando sin perder progreso. */
+function migrate(state) {
+  if (!state || state.version >= SAVE_VERSION) return state;
+  for (const clubId of Object.keys(state.clubs || {})) {
+    const club = state.clubs[clubId];
+    if (!club.country) club.country = DEFAULT_COUNTRY;
+    if (!club.crest) club.crest = generateCrest(new Rng(clubId.length * 7919), club.primaryColor, club.secondaryColor, club.shortName);
+    if (!club.kit) club.kit = generateKit(new Rng(clubId.length * 104729), club.primaryColor, club.secondaryColor);
+    if (!club.standSponsors) club.standSponsors = {};
+    if (club.sponsor && club.sponsor.deal === undefined) club.sponsor.deal = null;
+    for (const pid of club.squad || []) {
+      const p = state.players[pid];
+      if (p && !p.nationality) p.nationality = DEFAULT_COUNTRY;
+    }
+  }
+  if (!state.sponsorOffers) state.sponsorOffers = [];
+  state.version = SAVE_VERSION;
+  return state;
+}
 
 function walletAddress(state, clubId) {
   return '0xSIM' + clubId.replace(/[^a-z0-9]/gi, '').toUpperCase().padEnd(8, '0').slice(0, 8);
@@ -1445,6 +1734,7 @@ function newGame(opts) {
     nft: null,
     inbox: [],
     news: [],
+    sponsorOffers: [],
     pendingMatch: null,
     lastResults: [],
     seasonAwards: null
@@ -1454,6 +1744,7 @@ function newGame(opts) {
   const levels = [72, 69, 67, 65, 63, 61, 60, 58, 56, 54, 52, 50];
   const shuffledLevels = rng.shuffle(levels.slice());
 
+  const country = countryOf(opts.country) ? opts.country : DEFAULT_COUNTRY;
   const userClub = createClub(rng, {
     id: 'user-club',
     name: opts.clubName || 'Mi Club',
@@ -1462,12 +1753,15 @@ function newGame(opts) {
     primaryColor: opts.primaryColor || '#c8102e',
     secondaryColor: opts.secondaryColor || '#ffffff',
     formation: opts.formation || '4-3-3',
+    crest: opts.crest || undefined,
+    kit: opts.kit || undefined,
+    country,
     isUser: true,
     reputation: 50, fanbase: 750000, budget: 12000000,
     capacity: 24000, trainingLevel: 2, youthLevel: 2, medicalLevel: 2
   });
   userClub.managerName = opts.managerName || 'El Míster';
-  const userSquad = generateClubSquad(rng, 60, season);
+  const userSquad = generateClubSquad(rng, 60, season, country);
   state.clubs[userClub.id] = userClub;
   state.userClubId = userClub.id;
 
@@ -1478,6 +1772,7 @@ function newGame(opts) {
     const club = createClub(rng, {
       name: aiClubName(rng, usedNames),
       city: rng.pick(CITIES),
+      country,
       reputation: clamp(rep, 25, 85),
       fanbase: Math.round((200000 + rep * 22000) * rng.range(0.7, 1.3)),
       budget: Math.round((3000000 + rep * 220000) * rng.range(0.8, 1.25)),
@@ -1487,7 +1782,7 @@ function newGame(opts) {
       medicalLevel: clamp(Math.round(rep / 28), 1, 5),
       formation: rng.pick(Object.keys(FORMATIONS))
     });
-    const squad = generateClubSquad(rng, level, season);
+    const squad = generateClubSquad(rng, level, season, country);
     state.clubs[club.id] = club;
     clubIds.push(club.id);
     for (const p of squad) { state.players[p.id] = p; }
@@ -1521,6 +1816,7 @@ function newGame(opts) {
   chainMod.addBlock(state.chain, mintTxs);
 
   market.aiGenerateListings(state);
+  sponsors.refreshOffers(state);
   pushInbox(state, 'welcome', '¡Bienvenido a ' + userClub.name + '!', 'Eres el nuevo mánager. Configura tu alineación en Tácticas, entrena a tus jugadores y disputa la jornada 1. Tu tesorería inicial es de ' + fmtMoney(userClub.budget) + ' FCG. Todos los activos y transacciones se registran en la SIMCHAIN (blockchain simulada).');
   return state;
 }
@@ -1772,6 +2068,9 @@ function processWeekly(state) {
   }
 
   market.aiGenerateListings(state);
+
+  const sponsorOffers = sponsors.refreshOffers(state);
+  summary.sponsorOffers = sponsorOffers.length;
 
   const newOffers = [];
   for (const listing of state.market.listings.slice()) {
@@ -2055,7 +2354,7 @@ function startNewSeason(state) {
     }
     club.squad = remaining;
     while (club.squad.length < 16) {
-      const p = generatePlayer(state.rng, { level: 45 + club.reputation * 0.25, age: state.rng.int(18, 24) });
+      const p = generatePlayer(state.rng, { level: 45 + club.reputation * 0.25, age: state.rng.int(18, 24), country: club.country });
       p.contract = { wage: wageDemand(p, state.rng), until: state.season + state.rng.int(2, 4) };
       state.players[p.id] = p;
       const mintTx = nftMod.mintAsset(state.nft, p.id, club.wallet, { name: p.name, position: p.pos, overall: p.overall });
@@ -2068,9 +2367,11 @@ function startNewSeason(state) {
 
   state.league.fixtures = buildFixtures(state.league.clubIds, state.rng);
   market.aiGenerateListings(state);
+  const expiredSponsors = sponsors.expireDeals(state, state.userClubId);
+  sponsors.refreshOffers(state);
   syncWallet(state, state.userClubId, 'Ajuste de inicio de temporada');
 
-  pushInbox(state, 'season', `¡Arranca la temporada ${state.season}!`, `${retired.length} retiradas, ${state.market.freeAgents.length} agentes libres disponibles en el mercado. Nueva calendario generado. ¡A por todas!`);
+  pushInbox(state, 'season', `¡Arranca la temporada ${state.season}!`, `${retired.length} retiradas, ${state.market.freeAgents.length} agentes libres disponibles en el mercado. Nueva calendario generado.${expiredSponsors.length ? ' Contratos de patrocinio vencidos: ' + expiredSponsors.join(', ') + '.' : ''} ¡A por todas!`);
   if (freed.length) {
     pushInbox(state, 'warning', 'Contratos vencidos', `Los siguientes jugadores no tenían contrato vigente y han quedado libres: ${freed.map(f => f.name).join(', ')}. Renueva a tiempo la próxima vez.`);
   }
@@ -2113,7 +2414,7 @@ function signFreeAgent(state, playerId) {
 }
 
 module.exports = {
-  SAVE_VERSION, newGame, startMatch, resumeMatch, simUserMatch, commitMatch,
+  SAVE_VERSION, newGame, migrate, startMatch, resumeMatch, simUserMatch, commitMatch,
   advanceWeek, processWeekly, executeTransfer, userBuyListing, userMakeOffer,
   respondOffer, renewContract, upgradeFacility, endSeason, startNewSeason,
   getUserFixture, clubOfPlayer, walletAddress, syncWallet, pushInbox, scoutPlayer,
@@ -2121,12 +2422,70 @@ module.exports = {
 };
 
 },
-  "server/store-browser.js": function (exports, require, module) {
+  "server/auth-core.js": function (exports, require, module) {
 'use strict';
 
-/* Store para el modo navegador: misma interfaz que server/store.js pero con localStorage. */
+/* Núcleo de cuentas, independiente del almacenamiento y del entorno.
+   El hash se inyecta (scrypt en Node, SHA-256+salt en navegador) para que la
+   misma lógica sirva al servidor y al modo navegador. El campo `provider`
+   deja la costura para añadir 'google' (OAuth) sin tocar el resto del juego:
+   bastaría con crear la cuenta con provider:'google' desde el callback OAuth. */
 
-const KEY = 'fc-galaxy-save-v1';
+const USERNAME_RE = /^[a-zA-Z0-9_.-]{3,20}$/;
+
+function validateUsername(username) {
+  const u = String(username || '').trim();
+  if (!USERNAME_RE.test(u)) throw new Error('Usuario inválido: 3-20 caracteres (letras, números, . _ -)');
+  return u.toLowerCase();
+}
+
+function validatePassword(password) {
+  const p = String(password || '');
+  if (p.length < 6) throw new Error('La contraseña debe tener al menos 6 caracteres');
+  if (p.length > 128) throw new Error('Contraseña demasiado larga');
+  return p;
+}
+
+function hashPassword(password, salt, hashFn) {
+  return hashFn(salt + ':' + password);
+}
+
+function verifyPassword(password, salt, expectedHash, hashFn) {
+  const h = hashPassword(password, salt, hashFn);
+  if (h.length !== expectedHash.length) return false;
+  let diff = 0;
+  for (let i = 0; i < h.length; i++) diff |= h.charCodeAt(i) ^ expectedHash.charCodeAt(i);
+  return diff === 0;
+}
+
+function newAccount(id, username, password, hashFn, provider) {
+  const salt = id + '-' + Math.floor(Math.random() * 0xffffffff).toString(36);
+  return {
+    id,
+    username,
+    provider: provider || 'local',
+    salt,
+    hash: hashPassword(password, salt, hashFn),
+    createdAt: Date.now()
+  };
+}
+
+module.exports = { validateUsername, validatePassword, hashPassword, verifyPassword, newAccount, USERNAME_RE };
+
+},
+  "server/auth-browser.js": function (exports, require, module) {
+'use strict';
+
+/* Cuentas para el modo navegador: misma lógica que server/auth.js pero
+   persistiendo en localStorage. El hash usa SHA-256 + salt (scrypt no existe
+   en el navegador). En este modo todo vive en el cliente: es adecuado para
+   jugar, no para proteger secretos. */
+
+const { sha256Hex } = require('../blockchain/sha256');
+const core = require('./auth-core');
+
+const ACC_KEY = 'fc-galaxy-accounts-v1';
+const SESSION_KEY = 'fc-galaxy-session-v1';
 
 function storage() {
   if (typeof localStorage === 'undefined') {
@@ -2140,12 +2499,90 @@ function storage() {
   return localStorage;
 }
 
-function save(state) {
-  storage().setItem(KEY, JSON.stringify(state));
+function createBrowserAuth() {
+  function loadDb() {
+    try { return JSON.parse(storage().getItem(ACC_KEY) || '') || { accounts: {} }; }
+    catch (e) { return { accounts: {} }; }
+  }
+  function saveDb(db) { storage().setItem(ACC_KEY, JSON.stringify(db)); }
+
+  function publicAccount(acc) { return { id: acc.id, username: acc.username, provider: acc.provider }; }
+
+  return {
+    register(username, password) {
+      const u = core.validateUsername(username);
+      core.validatePassword(password);
+      const db = loadDb();
+      if (db.accounts[u]) throw new Error('Ese usuario ya existe');
+      const id = 'acc-' + Math.floor(Math.random() * 0xffffffff).toString(36);
+      db.accounts[u] = core.newAccount(id, u, password, sha256Hex, 'local');
+      saveDb(db);
+      return db.accounts[u];
+    },
+    login(username, password) {
+      const u = core.validateUsername(username);
+      const acc = loadDb().accounts[u];
+      if (!acc || !core.verifyPassword(password, acc.salt, acc.hash, sha256Hex)) {
+        throw new Error('Usuario o contrase\u00f1a incorrectos');
+      }
+      const token = 'tok-' + Math.floor(Math.random() * 0xffffffff).toString(36) + Date.now().toString(36);
+      storage().setItem(SESSION_KEY, JSON.stringify({ token, accountId: acc.id }));
+      return { token, account: publicAccount(acc) };
+    },
+    verify(token) {
+      const sess = storage().getItem(SESSION_KEY);
+      if (!sess || !token) return null;
+      try {
+        const s = JSON.parse(sess);
+        if (s.token !== token) return null;
+        const acc = Object.values(loadDb().accounts).find(a => a.id === s.accountId);
+        return acc ? publicAccount(acc) : null;
+      } catch (e) { return null; }
+    },
+    currentSession() {
+      const sess = storage().getItem(SESSION_KEY);
+      if (!sess) return null;
+      try {
+        const s = JSON.parse(sess);
+        const acc = Object.values(loadDb().accounts).find(a => a.id === s.accountId);
+        return acc ? publicAccount(acc) : null;
+      } catch (e) { return null; }
+    },
+    logout() { storage().removeItem(SESSION_KEY); }
+  };
 }
 
-function load() {
-  const raw = storage().getItem(KEY);
+module.exports = { createBrowserAuth };
+
+},
+  "server/store-browser.js": function (exports, require, module) {
+'use strict';
+
+/* Store para el modo navegador: misma interfaz que server/store.js pero con
+   localStorage. Cada cuenta tiene su clave de guardado; la partida antigua
+   (clave \u00fanica) se adopta como partida de la primera cuenta que inicie sesi\u00f3n. */
+
+const LEGACY_KEY = 'fc-galaxy-save-v1';
+const KEY_PREFIX = 'fc-galaxy-save-';
+
+function storage() {
+  if (typeof localStorage === 'undefined') {
+    const mem = {};
+    return {
+      getItem: k => (k in mem ? mem[k] : null),
+      setItem: (k, v) => { mem[k] = String(v); },
+      removeItem: k => { delete mem[k]; }
+    };
+  }
+  return localStorage;
+}
+
+function keyFor(accountId) {
+  const safe = String(accountId || 'guest').replace(/[^a-zA-Z0-9_-]/g, '');
+  return KEY_PREFIX + safe;
+}
+
+function parseState(raw) {
   if (!raw) return null;
   try {
     const state = JSON.parse(raw);
@@ -2153,21 +2590,39 @@ function load() {
       const { Rng } = require('./engine/rng');
       state.rng = Rng.fromJSON(state.rng);
     }
-    return state;
+    const game = require('./engine/game');
+    return game.migrate(state);
   } catch (err) {
     return null;
   }
 }
 
-function exists() {
-  return storage().getItem(KEY) != null;
+function createBrowserStore(accountId) {
+  const KEY = keyFor(accountId);
+  return {
+    save(state) { storage().setItem(KEY, JSON.stringify(state)); },
+    load() { return parseState(storage().getItem(KEY)); },
+    exists() { return storage().getItem(KEY) != null; },
+    clear() { storage().removeItem(KEY); }
+  };
 }
 
-function clear() {
-  storage().removeItem(KEY);
+/* Adopta la partida antigua de clave \u00fanica si la cuenta a\u00fan no tiene una. */
+function adoptLegacy(accountId) {
+  const store = createBrowserStore(accountId);
+  const legacy = storage().getItem(LEGACY_KEY);
+  if (store.exists() || !legacy) return false;
+  storage().setItem(keyFor(accountId), legacy);
+  storage().removeItem(LEGACY_KEY);
+  return true;
 }
 
-module.exports = { save, load, exists, clear };
+const guest = createBrowserStore('guest');
+
+module.exports = {
+  createBrowserStore, adoptLegacy,
+  save: guest.save, load: guest.load, exists: guest.exists, clear: guest.clear
+};
 
 },
   "server/routes.js": function (exports, require, module) {
@@ -2207,6 +2662,8 @@ function snapshot(state) {
     league: { fixtures: state.league.fixtures, champion: state.league.champion },
     table,
     inbox: state.inbox,
+    sponsorOffers: state.sponsorOffers || [],
+    countries: require('./engine/names').COUNTRIES.map(c => ({ code: c.code, name: c.name, flag: c.flag })),
     pendingMatch: state.pendingMatch,
     lastResults: state.lastResults.slice(0, 10),
     seasonAwards: state.seasonAwards,
@@ -2243,7 +2700,10 @@ function createRoutes({ getState, setState, store }) {
         managerName: body.managerName ? String(body.managerName).trim().slice(0, 30) : undefined,
         primaryColor: body.primaryColor,
         secondaryColor: body.secondaryColor,
-        formation: body.formation
+        formation: body.formation,
+        country: body.country,
+        crest: body.crest,
+        kit: body.kit
       });
       setState(state);
       store.save(state);
@@ -2402,6 +2862,44 @@ function createRoutes({ getState, setState, store }) {
       return { player: p };
     },
 
+    'POST /api/club/identity': (body) => {
+      const state = ensureState();
+      const club = state.clubs[state.userClubId];
+      const { CREST_SHAPES, CREST_PATTERNS, CREST_FIGURES, KIT_PATTERNS } = require('./engine/club');
+      if (body.crest && typeof body.crest === 'object') {
+        const c = body.crest;
+        if (!CREST_SHAPES.includes(c.shape) || !CREST_PATTERNS.includes(c.pattern) || !CREST_FIGURES.includes(c.figure)) {
+          throw new ApiError(400, 'Escudo inválido');
+        }
+        const hex = /^#[0-9a-fA-F]{6}$/;
+        if (!hex.test(c.c1 || '') || !hex.test(c.c2 || '')) throw new ApiError(400, 'Colores del escudo inválidos');
+        club.crest = {
+          shape: c.shape, pattern: c.pattern, figure: c.figure,
+          c1: c.c1, c2: c.c2,
+          initials: String(c.initials || club.shortName).slice(0, 4).toUpperCase()
+        };
+      }
+      if (body.kit && typeof body.kit === 'object') {
+        const k = body.kit;
+        if (!KIT_PATTERNS.includes(k.pattern)) throw new ApiError(400, 'Diseño de camiseta inválido');
+        const hex = /^#[0-9a-fA-F]{6}$/;
+        if (!hex.test(k.c1 || '') || !hex.test(k.c2 || '')) throw new ApiError(400, 'Colores de la camiseta inválidos');
+        club.kit = { pattern: k.pattern, c1: k.c1, c2: k.c2 };
+      }
+      if (body.name && String(body.name).trim().length >= 3) club.name = String(body.name).trim().slice(0, 30);
+      if (body.shortName) club.shortName = String(body.shortName).trim().slice(0, 4).toUpperCase();
+      if (club.crest) club.crest.initials = club.shortName;
+      store.save(state);
+      return { ok: true, snapshot: snapshot(state) };
+    },
+
+    'POST /api/sponsors/negotiate': (body) => {
+      const state = ensureState();
+      const result = require('./engine/sponsors').negotiate(state, body.offerId, body.action, Number(body.counterPct) || 0);
+      store.save(state);
+      return { ...result, snapshot: snapshot(state) };
+    },
+
     'GET /api/chain/verify': () => {
       const state = ensureState();
       return chainMod.validateChain(state.chain);
@@ -2423,25 +2921,71 @@ module.exports = { ApiError, snapshot, createRoutes };
 
 'use strict';
 /* Adaptador local: expone window.FC_LOCAL.handle(method, path, body) con la
-   misma semántica que la API HTTP, persistiendo en localStorage. */
+   misma semántica que la API HTTP, persistiendo en localStorage.
+   Incluye cuentas (login/registro) y una partida guardada por cuenta. */
 
-const store = require('./server/store-browser.js');
+const storeMod = require('./server/store-browser.js');
 const routesMod = require('./server/routes.js');
+const { createBrowserAuth } = require('./server/auth-browser.js');
 
-let state = store.load();
-const routes = routesMod.createRoutes({
-  getState: () => state,
-  setState: (s) => { state = s; },
-  store
-});
+const auth = createBrowserAuth();
+let current = auth.currentSession();
+let ctx = null;
+
+function contextFor(accountId) {
+  if (!ctx) {
+    const store = storeMod.createBrowserStore(accountId);
+    let state = store.load();
+    ctx = {
+      store,
+      routes: routesMod.createRoutes({
+        getState: () => state,
+        setState: (s) => { state = s; },
+        store
+      })
+    };
+  }
+  return ctx;
+}
 
 module.exports = {
   mode: 'browser',
   handle(method, path, body) {
-    const handler = routes[method + ' ' + path];
+    body = body || {};
+    try {
+      if (path === '/api/auth/register' && method === 'POST') {
+        const acc = auth.register(body.username, body.password);
+        const { account } = auth.login(body.username, body.password);
+        storeMod.adoptLegacy(account.id);
+        current = account; ctx = null;
+        return { status: 200, data: { account } };
+      }
+      if (path === '/api/auth/login' && method === 'POST') {
+        const { account } = auth.login(body.username, body.password);
+        storeMod.adoptLegacy(account.id);
+        current = account; ctx = null;
+        return { status: 200, data: { account } };
+      }
+      if (path === '/api/auth/logout' && method === 'POST') {
+        auth.logout();
+        current = null; ctx = null;
+        return { status: 200, data: { ok: true } };
+      }
+      if (path === '/api/auth/me' && method === 'GET') {
+        if (!current) return { status: 401, data: { error: 'Sin sesión' } };
+        return { status: 200, data: { account: current } };
+      }
+    } catch (err) {
+      if (err instanceof routesMod.ApiError) return { status: err.status, data: { error: err.message } };
+      return { status: 400, data: { error: err.message } };
+    }
+
+    if (!current) return { status: 401, data: { error: 'Inicia sesión para jugar', authRequired: true } };
+    const c = contextFor(current.id);
+    const handler = c.routes[method + ' ' + path];
     if (!handler) return { status: 404, data: { error: 'Endpoint no encontrado: ' + method + ' ' + path } };
     try {
-      return { status: 200, data: handler(body || {}) };
+      return { status: 200, data: handler(body) };
     } catch (err) {
       if (err instanceof routesMod.ApiError) return { status: err.status, data: { error: err.message } };
       return { status: 500, data: { error: 'Error interno: ' + err.message } };

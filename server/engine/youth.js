@@ -15,7 +15,8 @@ function weeklyYouth(state, clubId) {
     const p = generatePlayer(rng, {
       pos: rng.pick(YOUTH_POSITIONS),
       age: rng.int(15, 18),
-      level: clamp(42 + qualityBonus + rng.range(-4, 8), 30, 72)
+      level: clamp(42 + qualityBonus + rng.range(-4, 8), 30, 72),
+      country: club.country
     });
     p.potential = clamp(p.potential + Math.round(qualityBonus / 2), 40, 96);
     p.origin = 'cantera';

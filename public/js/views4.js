@@ -79,6 +79,7 @@ function viewClub(root) {
     '<span style="display:inline-block;width:12px;height:12px;background:' + esc(club.secondaryColor) + ';border-radius:3px;vertical-align:middle"></span></p></div></div>' +
     '<p class="hint-line">Reputaci\u00f3n: <strong>' + Math.round(club.reputation) + '/95</strong> \u00b7 Afici\u00f3n: <strong>' + (club.fanbase / 1000000).toFixed(2) + 'M</strong></p>' +
     '<p class="hint-line">Patrocinador: <strong>' + esc(club.sponsor.name) + '</strong> (' + fmtMoney(club.sponsor.income) + ' FCG/semana)</p>' +
+    '<button class="btn secondary small" id="btn-edit-identity">\U0001f3a8 Editar escudo y camiseta</button>' +
     '</div>';
 
   html += '<div class="card"><h2>Estadio</h2>' +
@@ -110,6 +111,33 @@ function viewClub(root) {
   html += '</div></div>';
 
   root.innerHTML = html;
+  document.getElementById('btn-edit-identity').addEventListener('click', () => {
+    openModal(
+      '<h2>Editar escudo y camiseta</h2>' +
+      identityEditorHtml('club', club) +
+      '<div class="close-row"><button class="btn secondary" id="idf-cancel">Cancelar</button>' +
+      '<button class="btn" id="idf-save">Guardar cambios</button></div>'
+    );
+    const mroot = document.getElementById('modal-root');
+    let draft = readIdentityDraft(mroot, 'club', club);
+    bindIdentityPreview(mroot, 'club', () => draft);
+    document.getElementById('idf-cancel').addEventListener('click', closeModal);
+    document.getElementById('idf-save').addEventListener('click', async () => {
+      draft = readIdentityDraft(mroot, 'club', club);
+      const btn = document.getElementById('idf-save');
+      btn.classList.add('loading'); btn.disabled = true;
+      try {
+        const r = await API.post('/api/club/identity', { crest: draft.crest, kit: draft.kit });
+        S = r.snapshot || S;
+        closeModal();
+        render();
+        toast('Escudo y camiseta actualizados.');
+      } catch (err) {
+        btn.classList.remove('loading'); btn.disabled = false;
+        toast(err.message, 'error');
+      }
+    });
+  });
   root.querySelectorAll('[data-upgrade]').forEach(el =>
     el.addEventListener('click', () => {
       const type = el.dataset.upgrade;
@@ -190,5 +218,87 @@ function viewChain(root) {
         : '<p class="sim-note" style="color:var(--danger)">\u274c Cadena inv\u00e1lida: ' + esc(r.reason) + '</p>';
     } catch (err) { toast(err.message, 'error'); }
   });
+  bindNav(root);
+}
+
+const SPONSOR_STAND_LABELS = { norte: 'Fondo Norte', sur: 'Fondo Sur', este: 'Lateral Este', oeste: 'Tribuna Oeste' };
+
+function sponsorDealCard(title, deal, extra) {
+  return '<div class="deal-card">' +
+    '<div class="deal-head"><strong>' + esc(deal.name) + '</strong><span class="deal-kind">' + esc(title) + '</span></div>' +
+    '<p class="hint-line">' + fmtMoney(deal.weekly) + ' FCG/semana · hasta temporada ' + deal.untilSeason +
+    (extra ? ' · ' + extra : '') + '</p></div>';
+}
+
+function sponsorOfferCard(o) {
+  const kindLabel = o.kind === 'shirt' ? 'Camiseta' : 'Grada · ' + esc(SPONSOR_STAND_LABELS[o.stand] || o.stand || '');
+  return '<div class="sponsor-card" data-offer="' + esc(o.id) + '">' +
+    '<div class="sponsor-head"><div><strong>' + esc(o.name) + '</strong>' +
+    '<p class="hint-line">' + kindLabel + ' · ' + o.seasons + ' temporada(s)</p></div>' +
+    '<div class="sponsor-money"><strong>+' + fmtMoney(o.weekly) + '</strong><span class="hint-line">FCG/semana</span>' +
+    (o.bonus ? '<span class="hint-line">+' + fmtMoney(o.bonus) + ' FCG de prima</span>' : '') +
+    '</div></div>' +
+    '<div class="sponsor-actions">' +
+      '<button class="btn small" data-neg="accept">Firmar</button>' +
+      '<span class="counter-box"><input type="number" min="5" max="60" value="15" data-counter>' +
+      '<button class="btn secondary small" data-neg="counter" title="Pide un % más sobre la oferta">Contraoferta %</button></span>' +
+      '<button class="btn secondary small" data-neg="reject">Rechazar</button>' +
+    '</div></div>';
+}
+
+function viewSponsors(root) {
+  const club = userClub();
+  const offers = S.sponsorOffers || [];
+  const standDeals = Object.entries(club.standSponsors || {});
+
+  let html = '<h1 class="view-title">Patrocinios</h1>' +
+    '<div class="grid grid-2">' +
+    '<div class="card"><h2>Contratos activos</h2>';
+  if (club.sponsor.deal) {
+    html += sponsorDealCard('Camiseta', club.sponsor.deal);
+  } else {
+    html += '<p class="empty-state">No tienes patrocinador de camiseta. La marca actual (' + esc(club.sponsor.name) + ') solo paga ' + fmtMoney(club.sponsor.income) + ' FCG/semana.</p>';
+  }
+  if (standDeals.length) {
+    html += standDeals.map(([key, deal]) =>
+      sponsorDealCard('Grada · ' + esc(SPONSOR_STAND_LABELS[key] || key), deal)).join('');
+  } else {
+    html += '<p class="empty-state">Ninguna grada del estadio patrocinada todavía.</p>';
+  }
+  html += '<p class="hint-line">Los ingresos se abonan semanalmente junto al resto de tus ingresos.</p></div>';
+
+  html += '<div class="card"><h2>Ofertas sobre la mesa</h2>';
+  if (offers.length) {
+    html += offers.map(sponsorOfferCard).join('') +
+      '<p class="hint-line">Contraofertar sube el contrato, pero si pides demasiado el patrocinador retira la oferta. Las ofertas caducan en 2 semanas.</p>';
+  } else {
+    html += '<p class="empty-state">No hay ofertas ahora mismo. Avanza una semana: llegarán nuevas propuestas según tu reputación y afición.</p>';
+  }
+  html += '</div></div>';
+
+  root.innerHTML = html;
+  root.querySelectorAll('[data-neg]').forEach(btn =>
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('.sponsor-card');
+      const offerId = card.dataset.offer;
+      const action = btn.dataset.neg;
+      const body = { offerId, action };
+      if (action === 'counter') {
+        const input = card.querySelector('[data-counter]');
+        const pct = Number(input && input.value);
+        if (!pct || pct < 5 || pct > 60) { toast('La contraoferta debe estar entre 5% y 60%.', 'error'); return; }
+        body.counterPct = pct;
+      }
+      card.querySelectorAll('button').forEach(b => { b.disabled = true; });
+      try {
+        const r = await API.post('/api/sponsors/negotiate', body);
+        if (r.snapshot) S = r.snapshot;
+        render();
+        toast(r.message || 'Negociación completada.', r.status === 'walked' || r.status === 'rejected' ? 'warn' : '');
+      } catch (err) {
+        toast(err.message, 'error');
+        render();
+      }
+    }));
   bindNav(root);
 }

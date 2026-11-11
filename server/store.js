@@ -3,40 +3,45 @@
 const fs = require('fs');
 const path = require('path');
 const { Rng } = require('./engine/rng');
+const game = require('./engine/game');
 
 const DATA_DIR = path.join(__dirname, 'data');
-const SAVE_FILE = process.env.FC_GALAXY_SAVE || path.join(DATA_DIR, 'save.json');
+const SAVES_DIR = path.join(DATA_DIR, 'saves');
 
-function save(state) {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  const tmp = SAVE_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(state));
-  fs.renameSync(tmp, SAVE_FILE);
-}
-
-function load() {
-  if (!fs.existsSync(SAVE_FILE)) return null;
-  try {
-    const raw = fs.readFileSync(SAVE_FILE, 'utf8');
-    const state = JSON.parse(raw);
-    if (state.rng && state.rng._rngState !== undefined) {
-      state.rng = Rng.fromJSON(state.rng);
-    } else if (!state.rng) {
-      state.rng = new Rng(state.rngSeed || Date.now());
-    }
-    return state;
-  } catch (err) {
-    console.error('[store] Error cargando partida:', err.message);
-    return null;
+function createFileStore(filePath) {
+  function save(state) {
+    if (!fs.existsSync(SAVES_DIR)) fs.mkdirSync(SAVES_DIR, { recursive: true });
+    const tmp = filePath + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(state));
+    fs.renameSync(tmp, filePath);
   }
+  function load() {
+    if (!fs.existsSync(filePath)) return null;
+    try {
+      const raw = fs.readFileSync(filePath, 'utf8');
+      const state = JSON.parse(raw);
+      if (state.rng && state.rng._rngState !== undefined) {
+        state.rng = Rng.fromJSON(state.rng);
+      } else if (!state.rng) {
+        state.rng = new Rng(state.rngSeed || Date.now());
+      }
+      return game.migrate(state);
+    } catch (err) {
+      console.error('[store] Error cargando partida:', err.message);
+      return null;
+    }
+  }
+  function exists() { return fs.existsSync(filePath); }
+  function clear() { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); }
+  return { save, load, exists, clear };
 }
 
-function exists() {
-  return fs.existsSync(SAVE_FILE);
+function storeForAccount(accountId) {
+  const safe = String(accountId).replace(/[^a-zA-Z0-9_-]/g, '');
+  return createFileStore(path.join(SAVES_DIR, safe + '.json'));
 }
 
-function clear() {
-  if (fs.existsSync(SAVE_FILE)) fs.unlinkSync(SAVE_FILE);
-}
+const SAVE_FILE = process.env.FC_GALAXY_SAVE || path.join(SAVES_DIR, 'guest.json');
+const defaultStore = createFileStore(SAVE_FILE);
 
-module.exports = { save, load, exists, clear, SAVE_FILE };
+module.exports = { createFileStore, storeForAccount, save: defaultStore.save, load: defaultStore.load, exists: defaultStore.exists, clear: defaultStore.clear, SAVE_FILE, DATA_DIR };

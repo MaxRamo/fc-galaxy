@@ -1,5 +1,7 @@
 node_modules/
 server/data/save.json
+server/data/accounts.json
+server/data/saves/
 server/data/*.tmp
 nohup.out
 .DS_Store

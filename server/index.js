@@ -4,11 +4,13 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const store = require('./store');
+const storeMod = require('./store');
+const { createAuth } = require('./auth');
 const { ApiError, createRoutes } = require('./routes');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+const COOKIE = 'fcg_session';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -20,17 +22,48 @@ const MIME = {
   '.ico': 'image/x-icon'
 };
 
-let state = store.load();
-const routes = createRoutes({
-  getState: () => state,
-  setState: (s) => { state = s; },
-  store
-});
+const auth = createAuth(storeMod.DATA_DIR);
 
-function sendJson(res, status, data) {
+const sessionStores = new Map();
+const sessionRoutes = new Map();
+function sessionContext(accountId) {
+  let store = sessionStores.get(accountId);
+  if (!store) {
+    store = accountId === 'guest' ? storeMod : storeMod.storeForAccount(accountId);
+    sessionStores.set(accountId, store);
+  }
+  let routes = sessionRoutes.get(accountId);
+  if (!routes) {
+    let state = store.load();
+    routes = createRoutes({
+      getState: () => state,
+      setState: (s) => { state = s; },
+      store
+    });
+    sessionRoutes.set(accountId, routes);
+  }
+  return { store, routes };
+}
+
+function parseCookies(req) {
+  const header = req.headers.cookie || '';
+  const out = {};
+  for (const part of header.split(';')) {
+    const idx = part.indexOf('=');
+    if (idx > -1) out[part.slice(0, idx).trim()] = decodeURIComponent(part.slice(idx + 1).trim());
+  }
+  return out;
+}
+
+function sendJson(res, status, data, extraHeaders) {
   const body = JSON.stringify(data);
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.writeHead(status, Object.assign({ 'Content-Type': 'application/json; charset=utf-8' }, extraHeaders || {}));
   res.end(body);
+}
+
+function sessionCookie(token, maxAgeDays) {
+  const days = maxAgeDays === 0 ? 0 : 30;
+  return { 'Set-Cookie': COOKIE + '=' + token + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + (days * 24 * 3600) };
 }
 
 function serveStatic(res, pathname) {
@@ -64,6 +97,39 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       let body = {};
       if (raw) { try { body = JSON.parse(raw); } catch (e) { return sendJson(res, 400, { error: 'JSON inv\u00e1lido' }); } }
+
+      const cookies = parseCookies(req);
+      const token = cookies[COOKIE];
+
+      try {
+        if (pathname === '/api/auth/register' && req.method === 'POST') {
+          const acc = auth.register(body.username, body.password);
+          const { token: t } = auth.login(body.username, body.password);
+          return sendJson(res, 200, { account: { id: acc.id, username: acc.username, provider: acc.provider } }, sessionCookie(t, 30));
+        }
+        if (pathname === '/api/auth/login' && req.method === 'POST') {
+          const { token: t, account } = auth.login(body.username, body.password);
+          return sendJson(res, 200, { account }, sessionCookie(t, 30));
+        }
+        if (pathname === '/api/auth/logout' && req.method === 'POST') {
+          auth.logout(token);
+          return sendJson(res, 200, { ok: true }, sessionCookie('', 0));
+        }
+        if (pathname === '/api/auth/me' && req.method === 'GET') {
+          const account = auth.verify(token);
+          if (!account) return sendJson(res, 401, { error: 'Sin sesi\u00f3n' });
+          return sendJson(res, 200, { account });
+        }
+      } catch (err) {
+        return sendJson(res, err instanceof ApiError ? err.status : 400, { error: err.message });
+      }
+
+      const account = auth.verify(token);
+      if (!account) {
+        return sendJson(res, 401, { error: 'Inicia sesi\u00f3n para jugar', authRequired: true });
+      }
+
+      const { routes } = sessionContext(account.id);
       const routeKey = req.method + ' ' + pathname;
       const handler = routes[routeKey];
       if (!handler) return sendJson(res, 404, { error: 'Endpoint no encontrado: ' + routeKey });
@@ -86,5 +152,4 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log('FC Galaxy escuchando en http://localhost:' + PORT);
-  console.log(state ? 'Partida cargada: T' + state.season + ' S' + state.week : 'Sin partida: crea tu club al abrir la web');
 });

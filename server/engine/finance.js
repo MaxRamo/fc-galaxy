@@ -22,13 +22,19 @@ function weeklyFinances(state, clubId) {
   const sponsor = club.sponsor.income;
   addLedger(state, clubId, { concept: `Patrocinio (${club.sponsor.name})`, amount: sponsor, category: 'patrocinio' });
 
+  let standsIncome = 0;
+  for (const [key, deal] of Object.entries(club.standSponsors || {})) {
+    standsIncome += deal.weekly;
+    addLedger(state, clubId, { concept: `Patrocinio de ${deal.standLabel || key} (${deal.name})`, amount: deal.weekly, category: 'patrocinio' });
+  }
+
   const merch = Math.round(club.fanbase * 0.0022 * (0.85 + club.reputation / 200));
   addLedger(state, clubId, { concept: 'Merchandising y abonos', amount: merch, category: 'comercial' });
 
   const maintenance = Math.round(club.stadium.capacity * 0.09 + (club.facilities.training + club.facilities.youth + club.facilities.medical) * 14000);
   addLedger(state, clubId, { concept: 'Mantenimiento de instalaciones', amount: -maintenance, category: 'instalaciones' });
 
-  return { wages, sponsor, merch, maintenance };
+  return { wages, sponsor, standsIncome, merch, maintenance };
 }
 
 function gateReceipts(state, clubId, opponentClubId) {
