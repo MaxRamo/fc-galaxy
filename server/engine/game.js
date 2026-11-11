@@ -1,21 +1,43 @@
 'use strict';
 
 const { Rng } = require('./rng');
-const { CITIES, randomName } = require('./names');
+const { CITIES, randomName, DEFAULT_COUNTRY, countryOf } = require('./names');
 const { generatePlayer, computeValue, wageDemand, growthForPlayer, applyGrowth, clamp } = require('./player');
-const { generateClubSquad, createClub, aiClubName, FORMATIONS } = require('./club');
+const { generateClubSquad, createClub, aiClubName, FORMATIONS, generateCrest, generateKit } = require('./club');
 const { TEAMS, PRIZE_MONEY, buildFixtures, computeTable, currentRoundFixtures, allRoundMatchesPlayed } = require('./league');
 const matchEngine = require('./match');
 const finance = require('./finance');
 const youth = require('./youth');
 const market = require('./market');
+const sponsors = require('./sponsors');
 
 const chainMod = require('../../blockchain/chain');
 const tokenMod = require('../../blockchain/token');
 const nftMod = require('../../blockchain/nft');
 const contractMod = require('../../blockchain/contract');
 
-const SAVE_VERSION = 3;
+const SAVE_VERSION = 4;
+
+/* Rellena los campos añadidos en versiones posteriores para que las partidas
+   antiguas (v3) sigan funcionando sin perder progreso. */
+function migrate(state) {
+  if (!state || state.version >= SAVE_VERSION) return state;
+  for (const clubId of Object.keys(state.clubs || {})) {
+    const club = state.clubs[clubId];
+    if (!club.country) club.country = DEFAULT_COUNTRY;
+    if (!club.crest) club.crest = generateCrest(new Rng(clubId.length * 7919), club.primaryColor, club.secondaryColor, club.shortName);
+    if (!club.kit) club.kit = generateKit(new Rng(clubId.length * 104729), club.primaryColor, club.secondaryColor);
+    if (!club.standSponsors) club.standSponsors = {};
+    if (club.sponsor && club.sponsor.deal === undefined) club.sponsor.deal = null;
+    for (const pid of club.squad || []) {
+      const p = state.players[pid];
+      if (p && !p.nationality) p.nationality = DEFAULT_COUNTRY;
+    }
+  }
+  if (!state.sponsorOffers) state.sponsorOffers = [];
+  state.version = SAVE_VERSION;
+  return state;
+}
 
 function walletAddress(state, clubId) {
   return '0xSIM' + clubId.replace(/[^a-z0-9]/gi, '').toUpperCase().padEnd(8, '0').slice(0, 8);
@@ -58,6 +80,7 @@ function newGame(opts) {
     nft: null,
     inbox: [],
     news: [],
+    sponsorOffers: [],
     pendingMatch: null,
     lastResults: [],
     seasonAwards: null
@@ -67,6 +90,7 @@ function newGame(opts) {
   const levels = [72, 69, 67, 65, 63, 61, 60, 58, 56, 54, 52, 50];
   const shuffledLevels = rng.shuffle(levels.slice());
 
+  const country = countryOf(opts.country) ? opts.country : DEFAULT_COUNTRY;
   const userClub = createClub(rng, {
     id: 'user-club',
     name: opts.clubName || 'Mi Club',
@@ -75,12 +99,15 @@ function newGame(opts) {
     primaryColor: opts.primaryColor || '#c8102e',
     secondaryColor: opts.secondaryColor || '#ffffff',
     formation: opts.formation || '4-3-3',
+    crest: opts.crest || undefined,
+    kit: opts.kit || undefined,
+    country,
     isUser: true,
     reputation: 50, fanbase: 750000, budget: 12000000,
     capacity: 24000, trainingLevel: 2, youthLevel: 2, medicalLevel: 2
   });
   userClub.managerName = opts.managerName || 'El Míster';
-  const userSquad = generateClubSquad(rng, 60, season);
+  const userSquad = generateClubSquad(rng, 60, season, country);
   state.clubs[userClub.id] = userClub;
   state.userClubId = userClub.id;
 
@@ -91,6 +118,7 @@ function newGame(opts) {
     const club = createClub(rng, {
       name: aiClubName(rng, usedNames),
       city: rng.pick(CITIES),
+      country,
       reputation: clamp(rep, 25, 85),
       fanbase: Math.round((200000 + rep * 22000) * rng.range(0.7, 1.3)),
       budget: Math.round((3000000 + rep * 220000) * rng.range(0.8, 1.25)),
@@ -100,7 +128,7 @@ function newGame(opts) {
       medicalLevel: clamp(Math.round(rep / 28), 1, 5),
       formation: rng.pick(Object.keys(FORMATIONS))
     });
-    const squad = generateClubSquad(rng, level, season);
+    const squad = generateClubSquad(rng, level, season, country);
     state.clubs[club.id] = club;
     clubIds.push(club.id);
     for (const p of squad) { state.players[p.id] = p; }
@@ -134,6 +162,7 @@ function newGame(opts) {
   chainMod.addBlock(state.chain, mintTxs);
 
   market.aiGenerateListings(state);
+  sponsors.refreshOffers(state);
   pushInbox(state, 'welcome', '¡Bienvenido a ' + userClub.name + '!', 'Eres el nuevo mánager. Configura tu alineación en Tácticas, entrena a tus jugadores y disputa la jornada 1. Tu tesorería inicial es de ' + fmtMoney(userClub.budget) + ' FCG. Todos los activos y transacciones se registran en la SIMCHAIN (blockchain simulada).');
   return state;
 }
@@ -385,6 +414,9 @@ function processWeekly(state) {
   }
 
   market.aiGenerateListings(state);
+
+  const sponsorOffers = sponsors.refreshOffers(state);
+  summary.sponsorOffers = sponsorOffers.length;
 
   const newOffers = [];
   for (const listing of state.market.listings.slice()) {
@@ -668,7 +700,7 @@ function startNewSeason(state) {
     }
     club.squad = remaining;
     while (club.squad.length < 16) {
-      const p = generatePlayer(state.rng, { level: 45 + club.reputation * 0.25, age: state.rng.int(18, 24) });
+      const p = generatePlayer(state.rng, { level: 45 + club.reputation * 0.25, age: state.rng.int(18, 24), country: club.country });
       p.contract = { wage: wageDemand(p, state.rng), until: state.season + state.rng.int(2, 4) };
       state.players[p.id] = p;
       const mintTx = nftMod.mintAsset(state.nft, p.id, club.wallet, { name: p.name, position: p.pos, overall: p.overall });
@@ -681,9 +713,11 @@ function startNewSeason(state) {
 
   state.league.fixtures = buildFixtures(state.league.clubIds, state.rng);
   market.aiGenerateListings(state);
+  const expiredSponsors = sponsors.expireDeals(state, state.userClubId);
+  sponsors.refreshOffers(state);
   syncWallet(state, state.userClubId, 'Ajuste de inicio de temporada');
 
-  pushInbox(state, 'season', `¡Arranca la temporada ${state.season}!`, `${retired.length} retiradas, ${state.market.freeAgents.length} agentes libres disponibles en el mercado. Nueva calendario generado. ¡A por todas!`);
+  pushInbox(state, 'season', `¡Arranca la temporada ${state.season}!`, `${retired.length} retiradas, ${state.market.freeAgents.length} agentes libres disponibles en el mercado. Nueva calendario generado.${expiredSponsors.length ? ' Contratos de patrocinio vencidos: ' + expiredSponsors.join(', ') + '.' : ''} ¡A por todas!`);
   if (freed.length) {
     pushInbox(state, 'warning', 'Contratos vencidos', `Los siguientes jugadores no tenían contrato vigente y han quedado libres: ${freed.map(f => f.name).join(', ')}. Renueva a tiempo la próxima vez.`);
   }
@@ -726,7 +760,7 @@ function signFreeAgent(state, playerId) {
 }
 
 module.exports = {
-  SAVE_VERSION, newGame, startMatch, resumeMatch, simUserMatch, commitMatch,
+  SAVE_VERSION, newGame, migrate, startMatch, resumeMatch, simUserMatch, commitMatch,
   advanceWeek, processWeekly, executeTransfer, userBuyListing, userMakeOffer,
   respondOffer, renewContract, upgradeFacility, endSeason, startNewSeason,
   getUserFixture, clubOfPlayer, walletAddress, syncWallet, pushInbox, scoutPlayer,

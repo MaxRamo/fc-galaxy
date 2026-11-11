@@ -1,8 +1,13 @@
 'use strict';
 
 const { Rng } = require('./rng');
-const { CITIES, CLUB_SUFFIX, SPONSOR_NAMES, randomName } = require('./names');
+const { CITIES, CLUB_SUFFIX, SPONSOR_NAMES, randomName, countryOf, DEFAULT_COUNTRY } = require('./names');
 const { generatePlayer, computeValue, clamp } = require('./player');
+
+const CREST_SHAPES = ['shield', 'circle', 'hex'];
+const CREST_PATTERNS = ['solid', 'stripes', 'halves', 'sash', 'hoops'];
+const CREST_FIGURES = ['none', 'star', 'ball', 'crown'];
+const KIT_PATTERNS = ['solid', 'stripes', 'hoops', 'sash'];
 
 const FORMATIONS = {
   '4-4-2': { GK: 1, CB: 2, LB: 1, RB: 1, DM: 0, CM: 2, AM: 0, LW: 1, RW: 1, ST: 2 },
@@ -22,16 +27,33 @@ const SQUAD_TEMPLATE = [
   'ST', 'ST', 'ST'
 ];
 
-function generateClubSquad(rng, level, season) {
+function generateClubSquad(rng, level, season, country) {
+  const c = country || DEFAULT_COUNTRY;
   const squad = [];
   for (const pos of SQUAD_TEMPLATE) {
     const ageRoll = rng.float();
     const age = ageRoll < 0.22 ? rng.int(17, 20) : ageRoll < 0.62 ? rng.int(21, 27) : ageRoll < 0.88 ? rng.int(28, 31) : rng.int(32, 36);
-    const p = generatePlayer(rng, { pos, age, level: level + rng.range(-4, 4) });
+    const nat = rng.chance(0.18) ? null : c;
+    const p = generatePlayer(rng, { pos, age, level: level + rng.range(-4, 4), country: nat || undefined });
     p.contract.until = season + rng.int(1, 4);
     squad.push(p);
   }
   return squad;
+}
+
+function generateCrest(rng, primaryColor, secondaryColor, shortName) {
+  return {
+    shape: rng.pick(CREST_SHAPES),
+    pattern: rng.pick(CREST_PATTERNS),
+    figure: rng.pick(CREST_FIGURES),
+    c1: primaryColor,
+    c2: secondaryColor,
+    initials: shortName
+  };
+}
+
+function generateKit(rng, primaryColor, secondaryColor) {
+  return { pattern: rng.pick(KIT_PATTERNS), c1: primaryColor, c2: secondaryColor };
 }
 
 function createClub(rng, opts) {
@@ -52,6 +74,10 @@ function createClub(rng, opts) {
     trainingFocus: 'balanced',
     playerTraining: {},
     sponsor: { name: rng.pick(SPONSOR_NAMES), income: 0 },
+    standSponsors: {},
+    crest: opts.crest || generateCrest(rng, opts.primaryColor || '#c8102e', opts.secondaryColor || '#ffffff', (opts.shortName || opts.name.slice(0, 3).toUpperCase())),
+    kit: opts.kit || generateKit(rng, opts.primaryColor || '#c8102e', opts.secondaryColor || '#ffffff'),
+    country: opts.country || DEFAULT_COUNTRY,
     lineup: [],
     tactics: { pressing: 'medium', width: 'normal' },
     isUser: !!opts.isUser
@@ -70,4 +96,7 @@ function aiClubName(rng, used) {
   return fallback;
 }
 
-module.exports = { FORMATIONS, SQUAD_TEMPLATE, generateClubSquad, createClub, aiClubName };
+module.exports = {
+  FORMATIONS, SQUAD_TEMPLATE, generateClubSquad, createClub, aiClubName,
+  generateCrest, generateKit, CREST_SHAPES, CREST_PATTERNS, CREST_FIGURES, KIT_PATTERNS
+};

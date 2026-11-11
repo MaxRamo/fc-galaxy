@@ -198,7 +198,13 @@ function runSegment(state, match, untilMinute) {
     match.stats.possession[1] = 100 - match.stats.possession[0];
 
     const homeAttacking = homePoss / 100 * hs.attack / (hs.attack + as.defense);
-    const chanceProb = 0.21 * (homeAttacking * 2);
+    const homeLosing = match.score[0] < match.score[1];
+    if (min === 60 && homeLosing && !match._crowdPushed) {
+      match._crowdPushed = true;
+      pushEvent(match, { type: 'crowd', side: 0, text: '🔥 La grada local se echa el equipo a la espalda y empuja' });
+    }
+    const crowdBoost = (min >= 60 && homeLosing) ? 1.12 : 1;
+    const chanceProb = 0.21 * (homeAttacking * 2) * crowdBoost;
     if (rng.chance(chanceProb)) createChance(state, match, hs, as, 0);
     const awayAttacking = (1 - homePoss / 100) * as.attack / (as.attack + hs.defense);
     if (rng.chance(0.21 * (awayAttacking * 2))) createChance(state, match, as, hs, 1);
@@ -248,6 +254,10 @@ function createChance(state, match, attS, defS, side) {
   const gk = gkId ? players[gkId] : null;
 
   const shooterP = players[shooter.id];
+  if (rng.chance(0.08)) {
+    pushEvent(match, { type: 'offside', side, playerId: shooter.id, playerName: shooterP.name, text: '🚩 Fuera de juego de ' + shooterP.name });
+    return;
+  }
   const quality = clamp(0.25 + (shooterP.attrs.shooting - 55) / 90 + (attS.attack - defS.defense) / 130 + rng.range(-0.08, 0.08), 0.05, 0.75);
   const gkFactor = gk ? clamp(0.9 + (gk.attrs.reflexes - 60) / 220, 0.75, 1.05) : 1;
   const roll = rng.float();

@@ -18,7 +18,7 @@ function rowHtml(p, opts) {
   const o = opts || {};
   return '<tr class="player-row" data-player="' + p.id + '">' +
     '<td>' + posTag(p.pos) + '</td>' +
-    '<td class="name-cell">' + esc(p.name) + (p.origin === 'cantera' ? ' <span class="youth-star">\ud83c\udf31</span>' : '') + '</td>' +
+    '<td class="name-cell">' + (p.nationality ? '<span class="nat-flag" title="Nacionalidad">' + flagOf(p.nationality) + '</span> ' : '') + esc(p.name) + (p.origin === 'cantera' ? ' <span class="youth-star">\ud83c\udf31</span>' : '') + '</td>' +
     '<td>' + p.age + '</td>' +
     '<td>' + ovrBadge(p.overall) + '</td>' +
     '<td>' + potentialText(p) + '</td>' +
@@ -194,7 +194,7 @@ function openPlayerModal(p) {
 
   openModal(
     '<div class="player-modal-head">' +
-      posTag(p.pos) + '<h2>' + esc(p.name) + '</h2>' + ovrBadge(p.overall) + statusOf(p) +
+      posTag(p.pos) + '<h2>' + (p.nationality ? flagOf(p.nationality) + ' ' : '') + esc(p.name) + '</h2>' + ovrBadge(p.overall) + statusOf(p) +
     '</div>' +
     '<div class="grid grid-2">' +
       '<div>' + attrBars(p) + '</div>' +

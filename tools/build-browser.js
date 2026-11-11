@@ -24,7 +24,10 @@ const MODULES = [
   'server/engine/finance.js',
   'server/engine/youth.js',
   'server/engine/market.js',
+  'server/engine/sponsors.js',
   'server/engine/game.js',
+  'server/auth-core.js',
+  'server/auth-browser.js',
   'server/store-browser.js',
   'server/routes.js'
 ];
@@ -32,25 +35,71 @@ const MODULES = [
 const ADAPTER = `
 'use strict';
 /* Adaptador local: expone window.FC_LOCAL.handle(method, path, body) con la
-   misma semántica que la API HTTP, persistiendo en localStorage. */
+   misma sem\u00e1ntica que la API HTTP, persistiendo en localStorage.
+   Incluye cuentas (login/registro) y una partida guardada por cuenta. */
 
-const store = require('./server/store-browser.js');
+const storeMod = require('./server/store-browser.js');
 const routesMod = require('./server/routes.js');
+const { createBrowserAuth } = require('./server/auth-browser.js');
 
-let state = store.load();
-const routes = routesMod.createRoutes({
-  getState: () => state,
-  setState: (s) => { state = s; },
-  store
-});
+const auth = createBrowserAuth();
+let current = auth.currentSession();
+let ctx = null;
+
+function contextFor(accountId) {
+  if (!ctx) {
+    const store = storeMod.createBrowserStore(accountId);
+    let state = store.load();
+    ctx = {
+      store,
+      routes: routesMod.createRoutes({
+        getState: () => state,
+        setState: (s) => { state = s; },
+        store
+      })
+    };
+  }
+  return ctx;
+}
 
 module.exports = {
   mode: 'browser',
   handle(method, path, body) {
-    const handler = routes[method + ' ' + path];
+    body = body || {};
+    try {
+      if (path === '/api/auth/register' && method === 'POST') {
+        const acc = auth.register(body.username, body.password);
+        const { account } = auth.login(body.username, body.password);
+        storeMod.adoptLegacy(account.id);
+        current = account; ctx = null;
+        return { status: 200, data: { account } };
+      }
+      if (path === '/api/auth/login' && method === 'POST') {
+        const { account } = auth.login(body.username, body.password);
+        storeMod.adoptLegacy(account.id);
+        current = account; ctx = null;
+        return { status: 200, data: { account } };
+      }
+      if (path === '/api/auth/logout' && method === 'POST') {
+        auth.logout();
+        current = null; ctx = null;
+        return { status: 200, data: { ok: true } };
+      }
+      if (path === '/api/auth/me' && method === 'GET') {
+        if (!current) return { status: 401, data: { error: 'Sin sesi\u00f3n' } };
+        return { status: 200, data: { account: current } };
+      }
+    } catch (err) {
+      if (err instanceof routesMod.ApiError) return { status: err.status, data: { error: err.message } };
+      return { status: 400, data: { error: err.message } };
+    }
+
+    if (!current) return { status: 401, data: { error: 'Inicia sesi\u00f3n para jugar', authRequired: true } };
+    const c = contextFor(current.id);
+    const handler = c.routes[method + ' ' + path];
     if (!handler) return { status: 404, data: { error: 'Endpoint no encontrado: ' + method + ' ' + path } };
     try {
-      return { status: 200, data: handler(body || {}) };
+      return { status: 200, data: handler(body) };
     } catch (err) {
       if (err instanceof routesMod.ApiError) return { status: err.status, data: { error: err.message } };
       return { status: 500, data: { error: 'Error interno: ' + err.message } };

@@ -94,15 +94,28 @@ public/                ← frontend SPA vanilla (sin framework)
 
 ## Bucle de juego
 
-1. Funda tu club (nombre, ciudad, colores, formación).
-2. Configura alineación y tácticas (campo interactivo, auto-completar).
-3. Juega la jornada en vivo (eventos minuto a minuto, cambios en el descanso
-   y en el minuto 75) o simula el resultado.
-4. Avanza la semana: finanzas, entrenamientos, cantera, mercado de la IA,
-   ofertas, recuperación de lesionados, sincronización de wallets.
-5. Ficha, vende, renueva contratos, mejora instalaciones, promociona canteranos.
-6. Tras 22 jornadas: premios, reparto de taquilla por posición y nueva
-   temporada (envejecimiento, retiradas, contratos que expiran, agentes libres).
+1. Crea tu cuenta (usuario y contraseña; en modo navegador las cuentas viven en
+   localStorage). El campo `provider` de las cuentas deja preparada la
+   integración futura de OAuth (p. ej. Google) sin tocar la lógica del juego.
+2. Funda tu club (nombre, ciudad, colores, formación, **país de la liga** —
+   da nacionalidad y coherencia de nombres a los jugadores — y **editor de
+   escudo y camiseta** con vista previa en vivo).
+3. Configura alineación y tácticas (campo interactivo, auto-completar).
+4. Juega la jornada en vivo: eventos minuto a minuto, **minimapa** con la
+   posición de los jugadores y el balón, fuera de juego, **control de
+   velocidad** (0.5×–4×), medidor de **pasión de la grada** (el público local
+   empuja si va perdiendo) y cambios en el descanso y en el minuto 75.
+   O simula el resultado directamente.
+5. Avanza la semana: finanzas, entrenamientos, cantera, mercado de la IA,
+   ofertas, recuperación de lesionados, sincronización de wallets y **nuevas
+   ofertas de patrocinio**.
+6. Negocia patrocinios: camiseta y gradas del estadio (aceptar, contraoferta
+   con riesgo de que retiren la oferta, rechazar). Los contratos se abonan
+   semanalmente y caducan al terminar las temporadas firmadas.
+7. Ficha, vende, renueva contratos, mejora instalaciones, promociona canteranos.
+8. Tras 22 jornadas: premios, reparto de taquilla por posición y nueva
+   temporada (envejecimiento, retiradas, contratos que expiran, agentes libres,
+   vencimiento de patrocinios).
 
 ## Limitaciones conocidas (v1)
 
@@ -111,3 +124,9 @@ public/                ← frontend SPA vanilla (sin framework)
   red P2P ni consenso: es una simulación honesta, nunca se presenta como real.
 - Copa continental y otras competiciones no están en v1; la liga de 12 clubes
   es la competición completa y jugable de principio a fin.
+- El login con Google (OAuth) NO está implementado: requiere credenciales de
+  Google Cloud y una URL de redirección pública. Las cuentas son locales
+  (usuario + contraseña con hash y salt) y el campo `provider` deja la
+  integración preparada. En modo navegador todo vive en el localStorage del
+  cliente: adecuado para jugar, no para proteger secretos. Para cuentas reales
+  multiusuario conviene desplegar el servidor Node (Railway/Render/VPS).

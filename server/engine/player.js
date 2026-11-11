@@ -1,6 +1,6 @@
 'use strict';
 
-const { randomName } = require('./names');
+const { randomName, DEFAULT_COUNTRY } = require('./names');
 
 const POSITIONS = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'];
 
@@ -47,6 +47,7 @@ function generatePlayer(rng, opts) {
   const pos = opts.pos || rng.pick(POSITIONS.filter(p => p !== 'GK'));
   const age = opts.age != null ? opts.age : rng.int(17, 34);
   const level = opts.level != null ? opts.level : 60;
+  const country = opts.country || DEFAULT_COUNTRY;
 
   let base = clamp(rng.gauss(level, 7), 30, 92);
 
@@ -68,7 +69,8 @@ function generatePlayer(rng, opts) {
   const growthLeft = age <= 23 ? rng.int(6, 22) : age <= 27 ? rng.int(2, 10) : rng.int(0, 3);
   const player = {
     id: rng.id('p'),
-    name: randomName(rng),
+    name: randomName(rng, country),
+    nationality: country,
     pos,
     age,
     attrs,

@@ -34,6 +34,8 @@ function snapshot(state) {
     league: { fixtures: state.league.fixtures, champion: state.league.champion },
     table,
     inbox: state.inbox,
+    sponsorOffers: state.sponsorOffers || [],
+    countries: require('./engine/names').COUNTRIES.map(c => ({ code: c.code, name: c.name, flag: c.flag })),
     pendingMatch: state.pendingMatch,
     lastResults: state.lastResults.slice(0, 10),
     seasonAwards: state.seasonAwards,
@@ -70,7 +72,10 @@ function createRoutes({ getState, setState, store }) {
         managerName: body.managerName ? String(body.managerName).trim().slice(0, 30) : undefined,
         primaryColor: body.primaryColor,
         secondaryColor: body.secondaryColor,
-        formation: body.formation
+        formation: body.formation,
+        country: body.country,
+        crest: body.crest,
+        kit: body.kit
       });
       setState(state);
       store.save(state);
@@ -227,6 +232,44 @@ function createRoutes({ getState, setState, store }) {
       const p = game.signFreeAgent(state, body.playerId);
       store.save(state);
       return { player: p };
+    },
+
+    'POST /api/club/identity': (body) => {
+      const state = ensureState();
+      const club = state.clubs[state.userClubId];
+      const { CREST_SHAPES, CREST_PATTERNS, CREST_FIGURES, KIT_PATTERNS } = require('./engine/club');
+      if (body.crest && typeof body.crest === 'object') {
+        const c = body.crest;
+        if (!CREST_SHAPES.includes(c.shape) || !CREST_PATTERNS.includes(c.pattern) || !CREST_FIGURES.includes(c.figure)) {
+          throw new ApiError(400, 'Escudo inválido');
+        }
+        const hex = /^#[0-9a-fA-F]{6}$/;
+        if (!hex.test(c.c1 || '') || !hex.test(c.c2 || '')) throw new ApiError(400, 'Colores del escudo inválidos');
+        club.crest = {
+          shape: c.shape, pattern: c.pattern, figure: c.figure,
+          c1: c.c1, c2: c.c2,
+          initials: String(c.initials || club.shortName).slice(0, 4).toUpperCase()
+        };
+      }
+      if (body.kit && typeof body.kit === 'object') {
+        const k = body.kit;
+        if (!KIT_PATTERNS.includes(k.pattern)) throw new ApiError(400, 'Diseño de camiseta inválido');
+        const hex = /^#[0-9a-fA-F]{6}$/;
+        if (!hex.test(k.c1 || '') || !hex.test(k.c2 || '')) throw new ApiError(400, 'Colores de la camiseta inválidos');
+        club.kit = { pattern: k.pattern, c1: k.c1, c2: k.c2 };
+      }
+      if (body.name && String(body.name).trim().length >= 3) club.name = String(body.name).trim().slice(0, 30);
+      if (body.shortName) club.shortName = String(body.shortName).trim().slice(0, 4).toUpperCase();
+      if (club.crest) club.crest.initials = club.shortName;
+      store.save(state);
+      return { ok: true, snapshot: snapshot(state) };
+    },
+
+    'POST /api/sponsors/negotiate': (body) => {
+      const state = ensureState();
+      const result = require('./engine/sponsors').negotiate(state, body.offerId, body.action, Number(body.counterPct) || 0);
+      store.save(state);
+      return { ...result, snapshot: snapshot(state) };
     },
 
     'GET /api/chain/verify': () => {

@@ -26,6 +26,8 @@ let S = null;             // snapshot del estado del servidor
 let route = 'dashboard';
 let matchPlayback = null; // estado local de reproducción del partido
 let tacticsDraft = null;  // borrador de alineación
+let User = null;          // cuenta con sesión iniciada
+const FLAGS = { es: '🇪🇸', ar: '🇦🇷', br: '🇧🇷', en: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', fr: '🇫🇷', de: '🇩🇪', it: '🇮🇹', pt: '🇵🇹', nl: '🇳🇱', uy: '🇺🇾', mx: '🇲🇽', ng: '🇳🇬' };
 const $app = document.getElementById('app');
 const $modalRoot = document.getElementById('modal-root');
 const $toasts = document.getElementById('toast-container');
@@ -92,10 +94,60 @@ function userClub() { return S.clubs[S.userClubId]; }
 function unreadCount() { return (S.inbox || []).filter(m => !m.read).length; }
 
 function badge(club, size) {
+  if (club && club.crest) return crestSvg(club.crest, size);
   const initials = esc(club.shortName || club.name.slice(0, 3).toUpperCase());
   const style = size ? 'width:' + size + 'px;height:' + size + 'px;font-size:' + Math.round(size / 3) + 'px' : '';
   return '<div class="badge" style="background:linear-gradient(135deg, ' + esc(club.primaryColor) + ', ' + esc(club.secondaryColor) + ');' + style + '">' + initials + '</div>';
 }
+
+function flagOf(code) { return FLAGS[code] || '🌍'; }
+
+/* Escudo SVG a partir de la configuración del club (forma, trama, figuras). */
+function crestSvg(crest, size) {
+  const c = crest || {};
+  const c1 = esc(c.c1 || '#c8102e'), c2 = esc(c.c2 || '#ffffff');
+  const initials = esc(c.initials || 'FC').slice(0, 4);
+  const shape = c.shape || 'shield';
+  const clip = shape === 'circle' ? 'M50 4 A46 46 0 1 1 49.9 4 Z'
+    : shape === 'hex' ? 'M50 3 L91 26 L91 74 L50 97 L9 74 L9 26 Z'
+    : 'M50 3 L92 12 V36 C92 64 80 84 50 97 C20 84 8 64 8 36 V12 Z';
+  let pattern = '';
+  if (c.pattern === 'stripes') pattern = '<rect x="26" y="0" width="12" height="100" fill="' + c2 + '"/><rect x="50" y="0" width="12" height="100" fill="' + c2 + '"/><rect x="74" y="0" width="12" height="100" fill="' + c2 + '"/>';
+  else if (c.pattern === 'halves') pattern = '<rect x="50" y="0" width="50" height="100" fill="' + c2 + '"/>';
+  else if (c.pattern === 'sash') pattern = '<polygon points="0,18 24,0 100,82 76,100" fill="' + c2 + '"/>';
+  else if (c.pattern === 'hoops') pattern = '<rect x="0" y="18" width="100" height="14" fill="' + c2 + '"/><rect x="0" y="46" width="100" height="14" fill="' + c2 + '"/><rect x="0" y="74" width="100" height="14" fill="' + c2 + '"/>';
+  const fig = c.figure === 'star' ? '<text x="50" y="78" text-anchor="middle" font-size="24" fill="#ffd54d">★</text>'
+    : c.figure === 'ball' ? '<text x="50" y="80" text-anchor="middle" font-size="24">⚽</text>'
+    : c.figure === 'crown' ? '<text x="50" y="78" text-anchor="middle" font-size="22">👑</text>' : '';
+  const uid = 'cg' + Math.abs((c1 + c2 + shape + (c.pattern || '')).split('').reduce(function (a, ch) { return ((a * 31 + ch.charCodeAt(0)) | 0); }, 7));
+  return '<svg class="crest" width="' + (size || 32) + '" height="' + (size || 32) + '" viewBox="0 0 100 100" role="img" aria-label="Escudo del club">' +
+    '<defs><clipPath id="' + uid + '"><path d="' + clip + '"/></clipPath></defs>' +
+    '<g clip-path="url(#' + uid + ')">' +
+      '<rect x="0" y="0" width="100" height="100" fill="' + c1 + '"/>' + pattern +
+    '</g>' +
+    '<path d="' + clip + '" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="4"/>' +
+    '<text x="50" y="54" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-weight="800" font-size="34" fill="#ffffff" stroke="rgba(0,0,0,0.45)" stroke-width="1.2" paint-order="stroke">' + initials + '</text>' +
+    fig + '</svg>';
+}
+
+/* Camiseta SVG (diseño del kit del club). */
+function kitSvg(kit, w, h) {
+  const k = kit || {};
+  const c1 = esc(k.c1 || '#c8102e'), c2 = esc(k.c2 || '#ffffff');
+  const W = w || 64, H = h || 64;
+  const body = 'M20 8 L34 2 Q40 8 50 8 Q60 8 66 2 L80 8 L94 22 L82 34 L80 28 L80 92 L20 92 L20 28 L18 34 L6 22 Z';
+  const uid = 'kit' + uidOf(k);
+  let pattern = '';
+  if (k.pattern === 'stripes') pattern = '<rect x="34" y="0" width="8" height="100" fill="' + c2 + '"/><rect x="50" y="0" width="8" height="100" fill="' + c2 + '"/><rect x="66" y="0" width="8" height="100" fill="' + c2 + '"/>';
+  else if (k.pattern === 'hoops') pattern = '<rect x="0" y="26" width="100" height="10" fill="' + c2 + '"/><rect x="0" y="48" width="100" height="10" fill="' + c2 + '"/><rect x="0" y="70" width="100" height="10" fill="' + c2 + '"/>';
+  else if (k.pattern === 'sash') pattern = '<polygon points="20,30 34,10 80,70 66,90" fill="' + c2 + '"/>';
+  return '<svg class="kit" width="' + W + '" height="' + H + '" viewBox="0 0 100 100" role="img" aria-label="Camiseta del club">' +
+    '<defs><clipPath id="' + uid + '"><path d="' + body + '"/></clipPath></defs>' +
+    '<path d="' + body + '" fill="' + c1 + '" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>' +
+    '<g clip-path="url(#' + uid + ')">' + pattern + '</g>' +
+    '</svg>';
+}
+function uidOf(k) { return Math.abs(JSON.stringify(k || {}).split('').reduce(function (a, ch) { return ((a * 31 + ch.charCodeAt(0)) | 0); }, 7)); }
 
 function potentialText(p) {
   if (p.scouted) return '<strong style="color:var(--accent)">' + p.potential + '</strong>';
@@ -114,6 +166,7 @@ const NAV = [
   { id: 'market', icon: '💰', label: 'Mercado' },
   { id: 'youth', icon: '🌱', label: 'Cantera' },
   { id: 'finance', icon: '📊', label: 'Finanzas' },
+  { id: 'sponsors', icon: '🤝', label: 'Patrocinios' },
   { id: 'chain', icon: '⛓️', label: 'Blockchain' },
   { id: 'club', icon: '🏟️', label: 'Mi Club' }
 ];
@@ -134,9 +187,58 @@ async function markInboxRead() {
 }
 
 function render() {
+  if (!User) return;
   if (!S) return renderSetup();
   if (route === 'match') { renderMatch(); return; }
   renderShell();
+}
+
+/* ---------- Inicio de sesión / registro ---------- */
+
+function renderLogin(mode) {
+  mode = mode || 'login';
+  const isReg = mode === 'register';
+  $app.innerHTML =
+  '<div class="setup-wrap"><div class="card setup-card auth-card">' +
+    '<div class="setup-hero">' +
+      '<h1>⚽ FC <span class="accent">GALAXY</span></h1>' +
+      '<p>' + (isReg ? 'Crea tu cuenta para empezar tu carrera como mánager.' : 'Inicia sesión para continuar tu carrera.') + '</p>' +
+    '</div>' +
+    '<div class="tab-bar auth-tabs">' +
+      '<button class="tab ' + (!isReg ? 'active' : '') + '" id="tab-login">Iniciar sesión</button>' +
+      '<button class="tab ' + (isReg ? 'active' : '') + '" id="tab-register">Crear cuenta</button>' +
+    '</div>' +
+    '<form id="auth-form">' +
+      '<label class="field"><span>Usuario</span><input type="text" name="username" required minlength="3" maxlength="20" autocomplete="username" placeholder="3-20 caracteres"></label>' +
+      '<label class="field"><span>Contraseña</span><input type="password" name="password" required minlength="6" maxlength="128" autocomplete="' + (isReg ? 'new-password' : 'current-password') + '" placeholder="mínimo 6 caracteres"></label>' +
+      '<button class="btn big" style="width:100%" type="submit">' + (isReg ? '🚀 Crear cuenta y jugar' : '▶️ Entrar') + '</button>' +
+      '<p class="hint-line" style="text-align:center">Cada cuenta tiene su propia partida guardada. En el modo navegador las cuentas viven en este dispositivo.</p>' +
+    '</form>' +
+  '</div></div>';
+
+  document.getElementById('tab-login').addEventListener('click', () => renderLogin('login'));
+  document.getElementById('tab-register').addEventListener('click', () => renderLogin('register'));
+  document.getElementById('auth-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const body = Object.fromEntries(new FormData(e.target).entries());
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.classList.add('loading'); btn.disabled = true;
+    try {
+      const r = await API.post('/api/auth/' + (isReg ? 'register' : 'login'), body);
+      User = r.account;
+      toast(isReg ? 'Cuenta creada. ¡Bienvenido, ' + r.account.username + '!' : 'Sesión iniciada. ¡Bienvenido de nuevo, ' + r.account.username + '!');
+      await bootLoadState();
+    } catch (err) {
+      toast(err.message, 'error');
+      btn.classList.remove('loading'); btn.disabled = false;
+    }
+  });
+}
+
+async function logout() {
+  try { await API.post('/api/auth/logout', {}); } catch (e) { /* noop */ }
+  User = null; S = null; route = 'dashboard'; matchPlayback = null; tacticsDraft = null;
+  renderLogin('login');
 }
 
 function navHtml() {
@@ -161,7 +263,9 @@ function renderShell() {
     '<aside class="sidebar">' +
       '<div class="brand"><span class="logo">⚽</span>FC <span class="accent">GALAXY</span></div>' +
       '<nav class="nav">' + navHtml() + '</nav>' +
-      '<div class="sidebar-footer">Temporada ' + S.season + ' · Semana ' + S.week + '<br>Blockchain: <strong style="color:var(--purple)">SIMULADA</strong></div>' +
+      '<div class="sidebar-footer">Temporada ' + S.season + ' · Semana ' + S.week + '<br>Blockchain: <strong style="color:var(--purple)">SIMULADA</strong>' +
+      (User ? '<br>👤 ' + esc(User.username) + ' <button class="btn secondary small" id="btn-logout" style="margin-top:6px">Salir</button>' : '') + '</div>' +
+ S.week + '<br>Blockchain: <strong style="color:var(--purple)">SIMULADA</strong></div>' +
     '</aside>' +
     '<div class="main">' +
       '<header class="topbar">' +
@@ -181,6 +285,8 @@ function renderShell() {
   '</div>';
 
   bindNav($app);
+  const lo = document.getElementById('btn-logout');
+  if (lo) lo.addEventListener('click', logout);
   const adv = document.getElementById('btn-advance');
   if (adv) adv.addEventListener('click', advanceWeek);
   const ns = document.getElementById('btn-newseason');
@@ -189,23 +295,82 @@ function renderShell() {
   const views = {
     dashboard: viewDashboard, squad: viewSquad, tactics: viewTactics, training: viewTraining,
     league: viewLeague, market: viewMarket, youth: viewYouth, finance: viewFinance,
-    chain: viewChain, club: viewClub, inbox: viewInbox
+    sponsors: viewSponsors, chain: viewChain, club: viewClub, inbox: viewInbox
   };
   (views[route] || viewDashboard)(document.getElementById('view'));
 }
 
 /* ---------- Pantalla de creación de club ---------- */
 
+const COUNTRY_LIST = [
+  { code: 'es', name: 'España' }, { code: 'ar', name: 'Argentina' }, { code: 'br', name: 'Brasil' },
+  { code: 'en', name: 'Inglaterra' }, { code: 'fr', name: 'Francia' }, { code: 'de', name: 'Alemania' },
+  { code: 'it', name: 'Italia' }, { code: 'pt', name: 'Portugal' }, { code: 'nl', name: 'Países Bajos' },
+  { code: 'uy', name: 'Uruguay' }, { code: 'mx', name: 'México' }, { code: 'ng', name: 'Nigeria' }
+];
+
+const CREST_SHAPES_UI = [['shield', 'Escudo'], ['circle', 'Círculo'], ['hex', 'Hexágono']];
+const CREST_PATTERNS_UI = [['solid', 'Liso'], ['stripes', 'A rayas'], ['halves', 'Mitades'], ['sash', 'Banda'], ['hoops', 'Aros']];
+const CREST_FIGURES_UI = [['none', 'Ninguna'], ['star', 'Estrella'], ['ball', 'Balón'], ['crown', 'Corona']];
+const KIT_PATTERNS_UI = [['solid', 'Lisa'], ['stripes', 'Rayas'], ['hoops', 'Aros'], ['sash', 'Banda']];
+
+function identityEditorHtml(prefix, club) {
+  const d = club || {};
+  const crest = d.crest || {};
+  const kit = d.kit || {};
+  const opts = (pairs, sel) => pairs.map(p => '<option value="' + p[0] + '"' + (p[0] === sel ? ' selected' : '') + '>' + p[1] + '</option>').join('');
+  return '<div class="identity-editor">' +
+    '<div class="identity-preview">' +
+      '<div id="' + prefix + '-crest-preview">' + crestSvg(crest, 96) + '</div>' +
+      '<div id="' + prefix + '-kit-preview">' + kitSvg(kit, 72, 72) + '</div>' +
+    '</div>' +
+    '<div class="identity-controls">' +
+      '<label class="field"><span>Forma del escudo</span><select data-idf="shape">' + opts(CREST_SHAPES_UI, crest.shape || 'shield') + '</select></label>' +
+      '<label class="field"><span>Trama del escudo</span><select data-idf="pattern">' + opts(CREST_PATTERNS_UI, crest.pattern || 'solid') + '</select></label>' +
+      '<label class="field"><span>Figura</span><select data-idf="figure">' + opts(CREST_FIGURES_UI, crest.figure || 'none') + '</select></label>' +
+      '<label class="field"><span>Siglas</span><input type="text" data-idf="initials" maxlength="4" value="' + esc(crest.initials || d.shortName || 'FC') + '"></label>' +
+      '<label class="field"><span>Diseño de camiseta</span><select data-idf="kitPattern">' + opts(KIT_PATTERNS_UI, kit.pattern || 'solid') + '</select></label>' +
+    '</div>' +
+  '</div>';
+}
+
+function readIdentityDraft(root, prefix, club) {
+  const crest = {
+    shape: root.querySelector('[data-idf="shape"]').value,
+    pattern: root.querySelector('[data-idf="pattern"]').value,
+    figure: root.querySelector('[data-idf="figure"]').value,
+    initials: (root.querySelector('[data-idf="initials"]').value || 'FC').toUpperCase(),
+    c1: club.primaryColor, c2: club.secondaryColor
+  };
+  const kit = { pattern: root.querySelector('[data-idf="kitPattern"]').value, c1: club.primaryColor, c2: club.secondaryColor };
+  return { crest, kit };
+}
+
+function bindIdentityPreview(root, prefix, getDraft) {
+  const update = () => {
+    const d = getDraft();
+    document.getElementById(prefix + '-crest-preview').innerHTML = crestSvg(d.crest, 96);
+    document.getElementById(prefix + '-kit-preview').innerHTML = kitSvg(d.kit, 72, 72);
+  };
+  root.querySelectorAll('[data-idf]').forEach(el => el.addEventListener('change', update));
+  root.querySelectorAll('[data-idf="initials"]').forEach(el => el.addEventListener('input', update));
+  update();
+}
+
+let setupCountry = 'es';
+
 function renderSetup() {
+  setupCountry = 'es';
+  const draftClub = { primaryColor: '#c8102e', secondaryColor: '#ffffff', shortName: 'FC', crest: { shape: 'shield', pattern: 'solid', figure: 'star', initials: 'FC', c1: '#c8102e', c2: '#ffffff' }, kit: { pattern: 'solid', c1: '#c8102e', c2: '#ffffff' } };
   $app.innerHTML =
-  '<div class="setup-wrap"><div class="card setup-card">' +
+  '<div class="setup-wrap"><div class="card setup-card setup-wide">' +
     '<div class="setup-hero">' +
       '<h1>⚽ FC <span class="accent">GALAXY</span></h1>' +
       '<p>Manager de fútbol con economía blockchain simulada.<br>Funda tu club, gestiona la plantilla y domina la liga.</p>' +
     '</div>' +
     '<form id="setup-form">' +
+      '<label class="field"><span>Nombre del club *</span><input type="text" name="clubName" placeholder="Ej: Estrella Roja" required minlength="3" maxlength="30"></label>' +
       '<div class="grid grid-2">' +
-        '<label class="field"><span>Nombre del club *</span><input type="text" name="clubName" placeholder="Ej: Estrella Roja" required minlength="3" maxlength="30"></label>' +
         '<label class="field"><span>Tu nombre de mánager</span><input type="text" name="managerName" placeholder="Ej: Álex Torres" maxlength="30"></label>' +
         '<label class="field"><span>Ciudad</span><input type="text" name="city" placeholder="Ej: Vallebravo" maxlength="30"></label>' +
         '<label class="field"><span>Formación inicial</span>' +
@@ -218,26 +383,56 @@ function renderSetup() {
             '<option value="4-1-4-1">4-1-4-1 (presión)</option>' +
           '</select>' +
         '</label>' +
+        '<label class="field"><span>Siglas (3-4 letras)</span><input type="text" name="shortName" placeholder="Ej: EST" maxlength="4"></label>' +
+      '</div>' +
+      '<div class="field"><span>País de la liga <small style="color:var(--text-faint)">(da nacionalidad a los jugadores)</small></span>' +
+        '<div class="country-grid" id="country-grid">' +
+          COUNTRY_LIST.map(c =>
+            '<button type="button" class="country-chip' + (c.code === setupCountry ? ' active' : '') + '" data-country="' + c.code + '">' +
+            '<span class="cf">' + flagOf(c.code) + '</span>' + esc(c.name) + '</button>').join('') +
+        '</div>' +
       '</div>' +
       '<div class="color-row">' +
         '<label class="field"><span>Color principal</span><input type="color" name="primaryColor" value="#c8102e"></label>' +
         '<label class="field"><span>Color secundario</span><input type="color" name="secondaryColor" value="#ffffff"></label>' +
       '</div>' +
+      '<p class="section-title">Escudo y camiseta</p>' +
+      '<div id="setup-identity">' + identityEditorHtml('setup', draftClub) + '</div>' +
       '<button class="btn big" style="width:100%" type="submit">🚀 Fundar mi club</button>' +
       '<p style="font-size:11.5px;color:var(--text-faint);margin-top:12px;text-align:center">' +
       'Liga de 12 clubes con 300+ jugadores, cada uno como activo digital único en la SIMCHAIN (blockchain simulada, no real).</p>' +
     '</form>' +
   '</div></div>';
 
-  document.getElementById('setup-form').addEventListener('submit', async e => {
+  const form = document.getElementById('setup-form');
+  const root = document.getElementById('setup-identity');
+  let identityDraft = readIdentityDraft(root, 'setup', draftClub);
+  bindIdentityPreview(root, 'setup', () => identityDraft);
+
+  document.getElementById('country-grid').addEventListener('click', e => {
+    const chip = e.target.closest('.country-chip');
+    if (!chip) return;
+    setupCountry = chip.dataset.country;
+    document.querySelectorAll('.country-chip').forEach(c => c.classList.toggle('active', c === chip));
+  });
+
+  form.addEventListener('submit', async e => {
     e.preventDefault();
     const body = Object.fromEntries(new FormData(e.target).entries());
+    body.country = setupCountry;
+    body.crest = identityDraft.crest;
+    body.kit = identityDraft.kit;
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.classList.add('loading'); btn.disabled = true;
     try {
       S = await API.post('/api/game/new', body);
       route = 'dashboard';
       render();
       toast('¡' + body.clubName + ' ha sido fundado! Buena suerte, mánager.');
-    } catch (err) { toast(err.message, 'error'); }
+    } catch (err) {
+      toast(err.message, 'error');
+      btn.classList.remove('loading'); btn.disabled = false;
+    }
   });
 }
 
