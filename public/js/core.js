@@ -3,7 +3,13 @@
 /* ================= FC Galaxy — núcleo del frontend ================= */
 
 const API = {
+  local: (typeof window !== 'undefined' && window.FC_LOCAL) || null,
   async call(method, path, body) {
+    if (this.local) {
+      const res = this.local.handle(method, path, body);
+      if (res.status >= 400) throw new Error((res.data && res.data.error) || 'Error (' + res.status + ')');
+      return res.data;
+    }
     const opts = { method, headers: { 'Content-Type': 'application/json' } };
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(path, opts);

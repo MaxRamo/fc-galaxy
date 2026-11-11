@@ -1,27 +1,42 @@
 # ⚽ FC Galaxy — Manager de Fútbol con Economía Blockchain Simulada
 
-> Juego Manager de Fútbol en blockchain (capa blockchain simulada internamente).
-
 Videojuego de gestión futbolística completo y jugable, con una capa de economía
 blockchain **simulada** (SIMCHAIN). Cero dependencias externas: solo Node.js
 (módulos `http`, `fs`, `path`, `crypto`).
 
 ## Cómo jugar
 
+### Opción A — En tu ordenador (recomendada: es la versión completa)
+
+Requiere [Node.js](https://nodejs.org) 18 o superior instalado:
+
 ```bash
 npm start          # servidor en http://localhost:3000
 ```
 
-Abre `http://localhost:3000`, funda tu club y gestiona: plantilla, tácticas,
-entrenamientos, mercado, cantera, finanzas y tu wallet en la SIMCHAIN. El
-progreso se guarda automáticamente en `server/data/save.json` (escritura
-atómica) y se restaura al reiniciar el servidor, incluido el estado del
-generador aleatorio (partidas reproducibles entre sesiones).
+Abre `http://localhost:3000` en el navegador (no abras `index.html` directo
+con doble clic: el frontend necesita el servidor para la API). El progreso se
+guarda automáticamente en `server/data/save.json` (escritura atómica) y se
+restaura al reiniciar el servidor, incluido el estado del generador aleatorio.
+
+### Opción B — Desplegado en Vercel (sin servidor)
+
+El repositorio incluye `vercel.json` y un bundle del motor para navegador
+(`public/js/engine-bundle.js`, generado por `node tools/build-browser.js`).
+En Vercel, importa el repo con el preset **Other**: detectará `vercel.json` y
+servirá `public/` como sitio estático. En este modo el juego completo se
+ejecuta en tu navegador y el progreso se guarda en el `localStorage` del
+navegador (persistente entre sesiones en el mismo dispositivo y navegador).
+
+Limitaciones del modo navegador frente al servidor local: el guardado vive en
+el dispositivo/navegador (no se sincroniza entre dispositivos) y tiene el
+tamaño máximo típico de localStorage (~5 MB, equivalente a varias temporadas).
 
 Otros comandos:
 
 ```bash
-npm test           # 18 tests: blockchain, motor, mercado, temporada completa headless, persistencia
+npm test                     # 21 tests: blockchain, motor, mercado, temporada completa, persistencia, modo navegador
+node tools/build-browser.js  # regenerar el bundle del navegador tras cambiar el motor
 ```
 
 ## Arquitectura
@@ -34,8 +49,10 @@ blockchain/            ← capa blockchain SIMULADA, 100% separada del juego
   contract.js          "contrato inteligente" simulado de traspasos (atómico, 4% quemado)
 
 server/
-  index.js             servidor HTTP sin dependencias + API REST
+  index.js             servidor HTTP sin dependencias (solo transporte)
+  routes.js            API REST compartida entre servidor y modo navegador
   store.js             persistencia JSON atómica + restauración de RNG
+  store-browser.js     persistencia en localStorage para el modo navegador
   engine/              ← lógica de juego (no sabe que existe la blockchain)
     rng.js             PRNG determinista y serializable
     player.js          generación, atributos, valoración, salarios, desarrollo
@@ -48,6 +65,7 @@ server/
     game.js            orquestador: ÚNICO puente entre juego y blockchain
 
 public/                ← frontend SPA vanilla (sin framework)
+  js/engine-bundle.js  motor compilado para navegador (generado, no editar a mano)
   js/core.js           API, estado, navegación, shell, creación de club
   js/views1..4.js      panel, plantilla, tácticas, liga, mercado, cantera, finanzas, club, SIMCHAIN
   js/match.js          reproducción de partidos en vivo + panel táctico (descanso y min. 75)
