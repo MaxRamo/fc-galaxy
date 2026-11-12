@@ -36,6 +36,7 @@ function snapshot(state) {
     inbox: state.inbox,
     sponsorOffers: state.sponsorOffers || [],
     countries: require('./engine/names').COUNTRIES.map(c => ({ code: c.code, name: c.name, flag: c.flag })),
+    skillTrees: require('./engine/skills').treesByPosition(),
     pendingMatch: state.pendingMatch,
     lastResults: state.lastResults.slice(0, 10),
     seasonAwards: state.seasonAwards,
@@ -263,6 +264,17 @@ function createRoutes({ getState, setState, store }) {
       if (club.crest) club.crest.initials = club.shortName;
       store.save(state);
       return { ok: true, snapshot: snapshot(state) };
+    },
+
+    'POST /api/player/skill': (body) => {
+      const state = ensureState();
+      const club = state.clubs[state.userClubId];
+      const player = state.players[body.playerId];
+      if (!player || !club.squad.includes(player.id)) throw new ApiError(404, 'Jugador no encontrado en tu plantilla');
+      const result = require('./engine/skills').unlockSkill(player, body.skillId);
+      if (!result.ok) throw new ApiError(400, result.reason);
+      store.save(state);
+      return { ok: true, message: player.name + ' ha desbloqueado: ' + result.skill.name, snapshot: snapshot(state) };
     },
 
     'POST /api/sponsors/negotiate': (body) => {

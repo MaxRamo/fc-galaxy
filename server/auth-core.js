@@ -45,4 +45,77 @@ function newAccount(id, username, password, hashFn, provider) {
   };
 }
 
-module.exports = { validateUsername, validatePassword, hashPassword, verifyPassword, newAccount, USERNAME_RE };
+/* ---------- Recuperación de contraseña ----------
+   Sin email: pregunta de seguridad elegida por el usuario. La respuesta se
+   guarda solo como hash con salt propio, normalizada para comparar. */
+
+const RECOVERY_QUESTIONS = [
+  '¿Cuál es el nombre de tu primera mascota?',
+  '¿En qué ciudad naciste?',
+  '¿Cuál es el nombre de tu mejor amigo/a de la infancia?',
+  '¿Cuál fue tu primer videojuego?',
+  '¿Cómo se llama tu equipo favorito?'
+];
+
+function normalizeAnswer(answer) {
+  return String(answer || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function validateRecoveryQuestion(question) {
+  const q = String(question || '').trim();
+  if (q.length < 5 || q.length > 200) throw new Error('La pregunta de recuperación debe tener entre 5 y 200 caracteres');
+  return q;
+}
+
+function validateRecoveryAnswer(answer) {
+  const a = normalizeAnswer(answer);
+  if (a.length < 2) throw new Error('La respuesta de recuperación debe tener al menos 2 caracteres');
+  if (a.length > 100) throw new Error('Respuesta de recuperación demasiado larga');
+  return a;
+}
+
+function setRecovery(acc, question, answer, hashFn) {
+  const q = validateRecoveryQuestion(question);
+  const a = validateRecoveryAnswer(answer);
+  const aSalt = acc.id + '-r-' + Math.floor(Math.random() * 0xffffffff).toString(36);
+  acc.recovery = {
+    q,
+    aSalt,
+    aHash: hashPassword(a, aSalt, hashFn),
+    fails: 0,
+    lockedUntil: 0
+  };
+  return acc.recovery;
+}
+
+function hasRecovery(acc) {
+  return !!(acc && acc.recovery && acc.recovery.q && acc.recovery.aHash);
+}
+
+function verifyRecoveryAnswer(acc, answer, hashFn) {
+  if (!hasRecovery(acc)) throw new Error('Esta cuenta no tiene pregunta de recuperación configurada');
+  const now = Date.now();
+  if (acc.recovery.lockedUntil && acc.recovery.lockedUntil > now) {
+    const mins = Math.ceil((acc.recovery.lockedUntil - now) / 60000);
+    throw new Error('Demasiados intentos fallidos. Espera ' + mins + ' min y vuelve a intentarlo');
+  }
+  const a = validateRecoveryAnswer(answer);
+  if (!verifyPassword(a, acc.recovery.aSalt, acc.recovery.aHash, hashFn)) {
+    acc.recovery.fails = (acc.recovery.fails || 0) + 1;
+    if (acc.recovery.fails >= 5) {
+      acc.recovery.fails = 0;
+      acc.recovery.lockedUntil = now + 5 * 60 * 1000;
+    }
+    throw new Error('Respuesta incorrecta');
+  }
+  acc.recovery.fails = 0;
+  acc.recovery.lockedUntil = 0;
+  return true;
+}
+
+module.exports = { validateUsername, validatePassword, hashPassword, verifyPassword, newAccount, USERNAME_RE, RECOVERY_QUESTIONS, normalizeAnswer, validateRecoveryQuestion, validateRecoveryAnswer, setRecovery, hasRecovery, verifyRecoveryAnswer };

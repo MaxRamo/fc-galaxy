@@ -535,6 +535,8 @@ function generatePlayer(rng, opts) {
     pos,
     age,
     attrs,
+    skills: [],
+    skillPoints: 0,
     potential: clamp(Math.round(base + growthLeft + (age <= 21 ? rng.int(0, 8) : 0)), 30, 96),
     morale: rng.int(60, 85),
     fatigue: rng.int(0, 15),
@@ -928,9 +930,18 @@ function runSegment(state, match, untilMinute) {
   const hs = teamStrength(home, match.lineups.home, players, true);
   const as = teamStrength(away, match.lineups.away, players, false);
 
-  while (match.minute < untilMinute && !match.finished) {
+  const stoppageOf = () => (untilMinute >= 90 ? (match._stoppage || 0) : 0);
+  while (match.minute < untilMinute + stoppageOf() && !match.finished) {
     match.minute++;
     const min = match.minute;
+
+    if (min === 90 && untilMinute >= 90 && !match._stoppageAnnounced) {
+      match._stoppageAnnounced = true;
+      const interruptions = match.events.filter(e =>
+        ['goal', 'sub', 'yellow', 'red', 'injury'].includes(e.type) && e.minute > 45).length;
+      match._stoppage = Math.max(1, Math.min(6, 1 + Math.ceil(interruptions / 4)));
+      pushEvent(match, { type: 'added', text: '\u23f1\ufe0f Se jugar\u00e1n ' + match._stoppage + ' minutos de tiempo a\u00f1adido' });
+    }
 
     const midDiff = hs.midfield - as.midfield;
     const homePoss = clamp(50 + midDiff * 0.35, 30, 70);
@@ -967,10 +978,6 @@ function runSegment(state, match, untilMinute) {
 
     if (min === 45 && match.userClubId) {
       pushEvent(match, { type: 'checkpoint', checkpoint: 'HT', text: 'Descanso: ' + home.shortName + ' ' + match.score[0] + '-' + match.score[1] + ' ' + away.shortName });
-      return;
-    }
-    if (min === 75 && match.userClubId) {
-      pushEvent(match, { type: 'checkpoint', checkpoint: 'M75', text: 'Minuto 75: última oportunidad para cambios tácticos' });
       return;
     }
   }
@@ -1126,7 +1133,8 @@ function ratingForPlayer(match, playerId, side) {
 
 function finishMatch(state, match) {
   if (match.finished) return;
-  match.minute = 90;
+  match.minute = Math.max(match.minute, 90);
+  match.stoppage = match._stoppage || 0;
   match.finished = true;
   match._yellowIds = new Set(match.events.filter(e => e.type === 'yellow').map(e => e.playerId).filter(Boolean));
   match._redIds = new Set(match.events.filter(e => e.type === 'red').map(e => e.playerId).filter(Boolean));
@@ -1151,6 +1159,10 @@ function finishMatch(state, match) {
       p.stats.ratedApps++;
       p.stats.avgRating = Math.round((p.stats.ratingSum / p.stats.ratedApps) * 100) / 100;
       p.form = clamp(p.form * 0.7 + (rating - 6.5) * 1.2, -3, 3);
+      let sp = 0;
+      if (rating >= 7.5) sp += 1;
+      if ((match.goals[id] || 0) > 0) sp += 1;
+      if (sp > 0) p.skillPoints = (p.skillPoints || 0) + sp;
       if (p._matchRed) { p.ban = Math.max(p.ban, 2); p.stats.red++; p._matchRed = false; }
       if (p._matchYellow) {
         p.stats.yellow++;
@@ -1651,6 +1663,154 @@ function fmt(v) {
 module.exports = { STANDS, KINDS, generateOffers, refreshOffers, negotiate, expireDeals, sponsorBaseIncome };
 
 },
+  "server/engine/skills.js": function (exports, require, module) {
+'use strict';
+
+/* Árboles de habilidades por posición. Cada jugador gana puntos de habilidad
+   entrenando y jugando, y el mánager los invierte en nodos del árbol de su
+   posición. Los efectos se aplican directamente a los atributos, así que el
+   radar del perfil refleja el progreso sin capas intermedias. */
+
+const { clamp, overallOf, computeValue, ATTR_KEYS, GK_KEYS } = require('./player');
+
+/* Cada nodo: id, nombre, descripción, tier (1-3), coste en puntos,
+   efectos sobre atributos y requisitos (ids de nodos previos). */
+const TREES = {
+  GK: [
+    { id: 'reflejos', name: 'Reflejos felinos', desc: 'Reacción instantánea ante disparos cercanos', tier: 1, cost: 1, attrs: { reflexes: 3 }, requires: [] },
+    { id: 'manos', name: 'Manos seguras', desc: 'Sujeta el balón con más firmeza', tier: 1, cost: 1, attrs: { handling: 3 }, requires: [] },
+    { id: 'salidas', name: 'Dominio aéreo', desc: 'Mejor colocación en centros y salidas', tier: 1, cost: 1, attrs: { positioning: 3 }, requires: [] },
+    { id: 'penaltis', name: 'Especialista en penaltis', desc: 'Lee la intención del lanzador', tier: 2, cost: 2, attrs: { reflexes: 3, handling: 2 }, requires: ['reflejos'] },
+    { id: 'juegopie', name: 'Juego con los pies', desc: 'Inicia el ataque desde atrás con precisión', tier: 2, cost: 2, attrs: { kicking: 4 }, requires: ['salidas'] },
+    { id: 'muralla', name: 'Muralla', desc: 'Presencia intimidante bajo palos', tier: 3, cost: 3, attrs: { reflexes: 3, positioning: 3, handling: 2 }, requires: ['penaltis', 'juegopie'] }
+  ],
+  CB: [
+    { id: 'marcaje', name: 'Marcaje férreo', desc: 'Pega al delantero durante todo el partido', tier: 1, cost: 1, attrs: { defending: 3 }, requires: [] },
+    { id: 'cuerpazo', name: 'Cuerpazo', desc: 'Gana los duelos físicos en el área', tier: 1, cost: 1, attrs: { physical: 3 }, requires: [] },
+    { id: 'cobertura', name: 'Cobertura', desc: 'Recupera posiciones defensivas más rápido', tier: 1, cost: 1, attrs: { pace: 3 }, requires: [] },
+    { id: 'entrada', name: 'Entrada limpia', desc: 'Roba el balón sin cometer falta', tier: 2, cost: 2, attrs: { defending: 4 }, requires: ['marcaje'] },
+    { id: 'jerek', name: 'Jefe de la defensa', desc: 'Ordena la línea y gana todo aéreo', tier: 2, cost: 2, attrs: { physical: 3, defending: 2 }, requires: ['cuerpazo'] },
+    { id: 'barrido', name: 'Barrido imposible', desc: 'Llegada salvadora al último recurso', tier: 3, cost: 3, attrs: { defending: 3, pace: 3, physical: 2 }, requires: ['entrada', 'jerek'] }
+  ],
+  FULLBACK: [
+    { id: 'velocidad', name: 'Carriler eléctrico', desc: 'Sube y baja la banda sin parar', tier: 1, cost: 1, attrs: { pace: 3 }, requires: [] },
+    { id: 'defensa', name: 'Cobertura defensiva', desc: 'Cierra la espalda del central', tier: 1, cost: 1, attrs: { defending: 3 }, requires: [] },
+    { id: 'centro', name: 'Centro al área', desc: 'Pone balones peligrosos al área', tier: 1, cost: 1, attrs: { passing: 3 }, requires: [] },
+    { id: 'subida', name: 'Progresión vertiginosa', desc: 'Conduce pegado a la línea de cal', tier: 2, cost: 2, attrs: { pace: 3, dribbling: 2 }, requires: ['velocidad'] },
+    { id: 'anticipo', name: 'Anticipación', desc: 'Corta las jugadas antes de que nacieran', tier: 2, cost: 2, attrs: { defending: 3, physical: 2 }, requires: ['defensa'] },
+    { id: 'todocampo', name: 'Lateral de élite', desc: 'Dueño absoluto de su banda', tier: 3, cost: 3, attrs: { pace: 3, defending: 3, passing: 2 }, requires: ['subida', 'anticipo'] }
+  ],
+  DM: [
+    { id: 'posicion', name: 'Ancla posicional', desc: 'Siempre cubre la zona del mediocentro', tier: 1, cost: 1, attrs: { defending: 3 }, requires: [] },
+    { id: 'pase', name: 'Primer pase', desc: 'Saca el balón limpio desde atrás', tier: 1, cost: 1, attrs: { passing: 3 }, requires: [] },
+    { id: 'fisico', name: 'Pulmón', desc: 'Recorre más metros que nadie', tier: 1, cost: 1, attrs: { physical: 3 }, requires: [] },
+    { id: 'robo', name: 'Pivote robón', desc: 'Lectura para cortar el contraataque', tier: 2, cost: 2, attrs: { defending: 4 }, requires: ['posicion'] },
+    { id: 'distribucion', name: 'Distribución de juego', desc: 'Cambia de orientación con precisión', tier: 2, cost: 2, attrs: { passing: 4 }, requires: ['pase'] },
+    { id: 'muro', name: 'Muro del mediocampo', desc: 'Nadie pasa por su zona', tier: 3, cost: 3, attrs: { defending: 3, physical: 3, passing: 2 }, requires: ['robo', 'distribucion'] }
+  ],
+  CM: [
+    { id: 'vision', name: 'Visión de juego', desc: 'Ve el pase que nadie ve', tier: 1, cost: 1, attrs: { passing: 3 }, requires: [] },
+    { id: 'conduccion', name: 'Conducción serena', desc: 'Sale de la presión sin perder el balón', tier: 1, cost: 1, attrs: { dribbling: 3 }, requires: [] },
+    { id: 'ritmo', name: 'Llegada desde atrás', desc: 'Se incorpora al ataque por sorpresa', tier: 1, cost: 1, attrs: { pace: 3 }, requires: [] },
+    { id: 'pasefiltrado', name: 'Pase filtrado', desc: 'Habilita a los delanteros entre líneas', tier: 2, cost: 2, attrs: { passing: 4 }, requires: ['vision'] },
+    { id: 'duelo', name: 'Duelo en mediocampo', desc: 'Gana las segundas pelotas', tier: 2, cost: 2, attrs: { physical: 3, defending: 2 }, requires: ['ritmo'] },
+    { id: 'motor', name: 'Motor del equipo', desc: 'Box-to-box de élite', tier: 3, cost: 3, attrs: { passing: 3, physical: 3, dribbling: 2 }, requires: ['pasefiltrado', 'duelo'] }
+  ],
+  AM: [
+    { id: 'asistencia', name: 'Ojo de águila', desc: 'Asistencia milimétrica', tier: 1, cost: 1, attrs: { passing: 3 }, requires: [] },
+    { id: 'regate', name: 'Regate en tres toques', desc: 'Se gira en espacios diminutos', tier: 1, cost: 1, attrs: { dribbling: 3 }, requires: [] },
+    { id: 'media', name: 'Media distancia', desc: 'Prueba desde fuera del área', tier: 1, cost: 1, attrs: { shooting: 3 }, requires: [] },
+    { id: 'paseoro', name: 'Pase de oro', desc: 'Asistencias que rompen partidos', tier: 2, cost: 2, attrs: { passing: 4, dribbling: 2 }, requires: ['asistencia'] },
+    { id: 'gancho', name: 'Gancho en la frontal', desc: 'Remate colocado desde la frontal', tier: 2, cost: 2, attrs: { shooting: 4 }, requires: ['media'] },
+    { id: 'magia', name: 'Diez mágico', desc: 'El equipo juega a su ritmo', tier: 3, cost: 3, attrs: { passing: 3, dribbling: 3, shooting: 2 }, requires: ['paseoro', 'gancho'] }
+  ],
+  WINGER: [
+    { id: 'explosividad', name: 'Explosividad', desc: 'Aceleración brutal en los primeros metros', tier: 1, cost: 1, attrs: { pace: 3 }, requires: [] },
+    { id: 'amagofinta', name: 'Amago y finta', desc: 'Deja al lateral sentado', tier: 1, cost: 1, attrs: { dribbling: 3 }, requires: [] },
+    { id: 'centro', name: 'Centro raso', desc: 'Asistencias al segundo palo', tier: 1, cost: 1, attrs: { passing: 3 }, requires: [] },
+    { id: 'banda', name: 'Dueño de la banda', desc: 'Encara y supera una y otra vez', tier: 2, cost: 2, attrs: { dribbling: 4, pace: 2 }, requires: ['amagofinta'] },
+    { id: 'cortado', name: 'Disparo cortado', desc: 'Define al segundo palo tras cortarse', tier: 2, cost: 2, attrs: { shooting: 4 }, requires: ['centro'] },
+    { id: 'extremo', name: 'Extremo de élite', desc: 'Desequilibrio constante', tier: 3, cost: 3, attrs: { pace: 3, dribbling: 3, shooting: 2 }, requires: ['banda', 'cortado'] }
+  ],
+  ST: [
+    { id: 'definicion', name: 'Definición', desc: 'Friaza ante el portero', tier: 1, cost: 1, attrs: { shooting: 3 }, requires: [] },
+    { id: 'desmarque', name: 'Desmarque', desc: 'Se escapa de la marca en el momento justo', tier: 1, cost: 1, attrs: { pace: 3 }, requires: [] },
+    { id: 'potencia', name: 'Potencia de disparo', desc: 'Remate seco desde cualquier ángulo', tier: 1, cost: 1, attrs: { shooting: 2, physical: 2 }, requires: [] },
+    { id: 'disparocertero', name: 'Disparo certero', desc: 'Ajusta el disparo al palo largo', tier: 2, cost: 2, attrs: { shooting: 4 }, requires: ['definicion'] },
+    { id: 'cabezazo', name: 'Cabezazo salvador', desc: 'Gana los centros con autoridad', tier: 2, cost: 2, attrs: { shooting: 3, physical: 2 }, requires: ['potencia'] },
+    { id: 'letal', name: 'Delantero letal', desc: 'Convierte media ocasión en gol', tier: 3, cost: 3, attrs: { shooting: 3, dribbling: 2, pace: 2 }, requires: ['disparocertero', 'cabezazo'] }
+  ]
+};
+
+const TREE_FOR_POS = {
+  GK: 'GK', CB: 'CB', LB: 'FULLBACK', RB: 'FULLBACK',
+  DM: 'DM', CM: 'CM', AM: 'AM', LW: 'WINGER', RW: 'WINGER', ST: 'ST'
+};
+
+function treeFor(pos) {
+  return TREES[TREE_FOR_POS[pos] || 'CM'] || [];
+}
+
+function skillById(pos, skillId) {
+  return treeFor(pos).find(s => s.id === skillId) || null;
+}
+
+function attrsKeysFor(pos) {
+  return pos === 'GK' ? GK_KEYS : ATTR_KEYS;
+}
+
+function skillState(player, skill) {
+  if (player.skills && player.skills.includes(skill.id)) return 'unlocked';
+  const missing = (skill.requires || []).filter(r => !(player.skills || []).includes(r));
+  if (missing.length) return 'locked';
+  if ((player.skillPoints || 0) < skill.cost) return 'no-points';
+  return 'available';
+}
+
+function canUnlock(player, skillId) {
+  const skill = skillById(player.pos, skillId);
+  if (!skill) return { ok: false, reason: 'Habilidad no válida para la posición ' + player.pos };
+  const state = skillState(player, skill);
+  if (state === 'unlocked') return { ok: false, reason: player.name + ' ya tiene esa habilidad' };
+  if (state === 'locked') return { ok: false, reason: 'Faltan requisitos previos para ' + skill.name };
+  if (state === 'no-points') return { ok: false, reason: 'Puntos de habilidad insuficientes (coste: ' + skill.cost + ')' };
+  return { ok: true, skill };
+}
+
+function unlockSkill(player, skillId) {
+  const check = canUnlock(player, skillId);
+  if (!check.ok) return check;
+  const skill = check.skill;
+  player.skillPoints = (player.skillPoints || 0) - skill.cost;
+  player.skills = (player.skills || []).concat(skill.id);
+  for (const [key, bonus] of Object.entries(skill.attrs)) {
+    if (player.attrs[key] != null) player.attrs[key] = clamp(player.attrs[key] + bonus, 20, 99);
+  }
+  player.overall = overallOf(player);
+  player.value = computeValue(player);
+  return { ok: true, skill, player };
+}
+
+function grantPoints(player, n) {
+  if (n > 0) player.skillPoints = (player.skillPoints || 0) + n;
+  return player;
+}
+
+function pointsSummary(player) {
+  const tree = treeFor(player.pos);
+  const spent = tree.filter(s => (player.skills || []).includes(s.id)).reduce((a, s) => a + s.cost, 0);
+  return { total: spent + (player.skillPoints || 0), spent, available: player.skillPoints || 0 };
+}
+
+function treesByPosition() {
+  const out = {};
+  for (const pos of Object.keys(TREE_FOR_POS)) out[pos] = TREES[TREE_FOR_POS[pos]];
+  return out;
+}
+
+module.exports = { TREES, TREE_FOR_POS, treeFor, skillById, skillState, canUnlock, unlockSkill, grantPoints, pointsSummary, attrsKeysFor, treesByPosition };
+
+},
   "server/engine/game.js": function (exports, require, module) {
 'use strict';
 
@@ -1670,7 +1830,7 @@ const tokenMod = require('../../blockchain/token');
 const nftMod = require('../../blockchain/nft');
 const contractMod = require('../../blockchain/contract');
 
-const SAVE_VERSION = 4;
+const SAVE_VERSION = 5;
 
 /* Rellena los campos añadidos en versiones posteriores para que las partidas
    antiguas (v3) sigan funcionando sin perder progreso. */
@@ -1689,6 +1849,10 @@ function migrate(state) {
     }
   }
   if (!state.sponsorOffers) state.sponsorOffers = [];
+  for (const p of Object.values(state.players || {})) {
+    if (!p.skills) p.skills = [];
+    if (p.skillPoints == null) p.skillPoints = 0;
+  }
   state.version = SAVE_VERSION;
   return state;
 }
@@ -2470,7 +2634,80 @@ function newAccount(id, username, password, hashFn, provider) {
   };
 }
 
-module.exports = { validateUsername, validatePassword, hashPassword, verifyPassword, newAccount, USERNAME_RE };
+/* ---------- Recuperación de contraseña ----------
+   Sin email: pregunta de seguridad elegida por el usuario. La respuesta se
+   guarda solo como hash con salt propio, normalizada para comparar. */
+
+const RECOVERY_QUESTIONS = [
+  '¿Cuál es el nombre de tu primera mascota?',
+  '¿En qué ciudad naciste?',
+  '¿Cuál es el nombre de tu mejor amigo/a de la infancia?',
+  '¿Cuál fue tu primer videojuego?',
+  '¿Cómo se llama tu equipo favorito?'
+];
+
+function normalizeAnswer(answer) {
+  return String(answer || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function validateRecoveryQuestion(question) {
+  const q = String(question || '').trim();
+  if (q.length < 5 || q.length > 200) throw new Error('La pregunta de recuperación debe tener entre 5 y 200 caracteres');
+  return q;
+}
+
+function validateRecoveryAnswer(answer) {
+  const a = normalizeAnswer(answer);
+  if (a.length < 2) throw new Error('La respuesta de recuperación debe tener al menos 2 caracteres');
+  if (a.length > 100) throw new Error('Respuesta de recuperación demasiado larga');
+  return a;
+}
+
+function setRecovery(acc, question, answer, hashFn) {
+  const q = validateRecoveryQuestion(question);
+  const a = validateRecoveryAnswer(answer);
+  const aSalt = acc.id + '-r-' + Math.floor(Math.random() * 0xffffffff).toString(36);
+  acc.recovery = {
+    q,
+    aSalt,
+    aHash: hashPassword(a, aSalt, hashFn),
+    fails: 0,
+    lockedUntil: 0
+  };
+  return acc.recovery;
+}
+
+function hasRecovery(acc) {
+  return !!(acc && acc.recovery && acc.recovery.q && acc.recovery.aHash);
+}
+
+function verifyRecoveryAnswer(acc, answer, hashFn) {
+  if (!hasRecovery(acc)) throw new Error('Esta cuenta no tiene pregunta de recuperación configurada');
+  const now = Date.now();
+  if (acc.recovery.lockedUntil && acc.recovery.lockedUntil > now) {
+    const mins = Math.ceil((acc.recovery.lockedUntil - now) / 60000);
+    throw new Error('Demasiados intentos fallidos. Espera ' + mins + ' min y vuelve a intentarlo');
+  }
+  const a = validateRecoveryAnswer(answer);
+  if (!verifyPassword(a, acc.recovery.aSalt, acc.recovery.aHash, hashFn)) {
+    acc.recovery.fails = (acc.recovery.fails || 0) + 1;
+    if (acc.recovery.fails >= 5) {
+      acc.recovery.fails = 0;
+      acc.recovery.lockedUntil = now + 5 * 60 * 1000;
+    }
+    throw new Error('Respuesta incorrecta');
+  }
+  acc.recovery.fails = 0;
+  acc.recovery.lockedUntil = 0;
+  return true;
+}
+
+module.exports = { validateUsername, validatePassword, hashPassword, verifyPassword, newAccount, USERNAME_RE, RECOVERY_QUESTIONS, normalizeAnswer, validateRecoveryQuestion, validateRecoveryAnswer, setRecovery, hasRecovery, verifyRecoveryAnswer };
 
 },
   "server/auth-browser.js": function (exports, require, module) {
@@ -2509,13 +2746,15 @@ function createBrowserAuth() {
   function publicAccount(acc) { return { id: acc.id, username: acc.username, provider: acc.provider }; }
 
   return {
-    register(username, password) {
+    register(username, password, recoveryQuestion, recoveryAnswer) {
       const u = core.validateUsername(username);
       core.validatePassword(password);
       const db = loadDb();
       if (db.accounts[u]) throw new Error('Ese usuario ya existe');
       const id = 'acc-' + Math.floor(Math.random() * 0xffffffff).toString(36);
-      db.accounts[u] = core.newAccount(id, u, password, sha256Hex, 'local');
+      const acc = core.newAccount(id, u, password, sha256Hex, 'local');
+      core.setRecovery(acc, recoveryQuestion, recoveryAnswer, sha256Hex);
+      db.accounts[u] = acc;
       saveDb(db);
       return db.accounts[u];
     },
@@ -2548,7 +2787,39 @@ function createBrowserAuth() {
         return acc ? publicAccount(acc) : null;
       } catch (e) { return null; }
     },
-    logout() { storage().removeItem(SESSION_KEY); }
+    logout() { storage().removeItem(SESSION_KEY); },
+
+    getRecoveryQuestion(username) {
+      const u = core.validateUsername(username);
+      const acc = loadDb().accounts[u];
+      if (!acc || !core.hasRecovery(acc)) {
+        throw new Error('No hay pregunta de recuperación para ese usuario');
+      }
+      return acc.recovery.q;
+    },
+
+    resetPassword(username, answer, newPassword) {
+      const u = core.validateUsername(username);
+      core.validatePassword(newPassword);
+      const db = loadDb();
+      const acc = db.accounts[u];
+      if (!acc) throw new Error('No hay pregunta de recuperación para ese usuario');
+      core.verifyRecoveryAnswer(acc, answer, sha256Hex);
+      acc.hash = core.hashPassword(newPassword, acc.salt, sha256Hex);
+      saveDb(db);
+      const token = 'tok-' + Math.floor(Math.random() * 0xffffffff).toString(36) + Date.now().toString(36);
+      storage().setItem(SESSION_KEY, JSON.stringify({ token, accountId: acc.id }));
+      return { token, account: publicAccount(acc) };
+    },
+
+    setRecoveryQuestion(accountId, question, answer) {
+      const db = loadDb();
+      const acc = Object.values(db.accounts).find(a => a.id === accountId);
+      if (!acc) throw new Error('Cuenta no encontrada');
+      core.setRecovery(acc, question, answer, sha256Hex);
+      saveDb(db);
+      return { ok: true };
+    }
   };
 }
 
@@ -2664,6 +2935,7 @@ function snapshot(state) {
     inbox: state.inbox,
     sponsorOffers: state.sponsorOffers || [],
     countries: require('./engine/names').COUNTRIES.map(c => ({ code: c.code, name: c.name, flag: c.flag })),
+    skillTrees: require('./engine/skills').treesByPosition(),
     pendingMatch: state.pendingMatch,
     lastResults: state.lastResults.slice(0, 10),
     seasonAwards: state.seasonAwards,
@@ -2893,6 +3165,17 @@ function createRoutes({ getState, setState, store }) {
       return { ok: true, snapshot: snapshot(state) };
     },
 
+    'POST /api/player/skill': (body) => {
+      const state = ensureState();
+      const club = state.clubs[state.userClubId];
+      const player = state.players[body.playerId];
+      if (!player || !club.squad.includes(player.id)) throw new ApiError(404, 'Jugador no encontrado en tu plantilla');
+      const result = require('./engine/skills').unlockSkill(player, body.skillId);
+      if (!result.ok) throw new ApiError(400, result.reason);
+      store.save(state);
+      return { ok: true, message: player.name + ' ha desbloqueado: ' + result.skill.name, snapshot: snapshot(state) };
+    },
+
     'POST /api/sponsors/negotiate': (body) => {
       const state = ensureState();
       const result = require('./engine/sponsors').negotiate(state, body.offerId, body.action, Number(body.counterPct) || 0);
@@ -2954,8 +3237,18 @@ module.exports = {
     body = body || {};
     try {
       if (path === '/api/auth/register' && method === 'POST') {
-        const acc = auth.register(body.username, body.password);
+        const acc = auth.register(body.username, body.password, body.recoveryQuestion, body.recoveryAnswer);
         const { account } = auth.login(body.username, body.password);
+        storeMod.adoptLegacy(account.id);
+        current = account; ctx = null;
+        return { status: 200, data: { account } };
+      }
+      if (path === '/api/auth/recover/question' && method === 'POST') {
+        const question = auth.getRecoveryQuestion(body.username);
+        return { status: 200, data: { question } };
+      }
+      if (path === '/api/auth/recover/reset' && method === 'POST') {
+        const { account } = auth.resetPassword(body.username, body.answer, body.password);
         storeMod.adoptLegacy(account.id);
         current = account; ctx = null;
         return { status: 200, data: { account } };
@@ -2981,6 +3274,10 @@ module.exports = {
     }
 
     if (!current) return { status: 401, data: { error: 'Inicia sesión para jugar', authRequired: true } };
+    if (path === '/api/auth/recovery-question' && method === 'POST') {
+      const r = auth.setRecoveryQuestion(current.id, body.question, body.answer);
+      return { status: 200, data: r };
+    }
     const c = contextFor(current.id);
     const handler = c.routes[method + ' ' + path];
     if (!handler) return { status: 404, data: { error: 'Endpoint no encontrado: ' + method + ' ' + path } };

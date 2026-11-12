@@ -16,7 +16,7 @@ const tokenMod = require('../../blockchain/token');
 const nftMod = require('../../blockchain/nft');
 const contractMod = require('../../blockchain/contract');
 
-const SAVE_VERSION = 4;
+const SAVE_VERSION = 5;
 
 /* Rellena los campos añadidos en versiones posteriores para que las partidas
    antiguas (v3) sigan funcionando sin perder progreso. */
@@ -35,6 +35,10 @@ function migrate(state) {
     }
   }
   if (!state.sponsorOffers) state.sponsorOffers = [];
+  for (const p of Object.values(state.players || {})) {
+    if (!p.skills) p.skills = [];
+    if (p.skillPoints == null) p.skillPoints = 0;
+  }
   state.version = SAVE_VERSION;
   return state;
 }

@@ -33,7 +33,7 @@ test('auth servidor: registro, duplicados, login y sesiones', () => {
   const dir = tmpDir();
   const auth = createAuth(dir);
 
-  const account = auth.register('jugador_uno', 'clave123');
+  const account = auth.register('jugador_uno', 'clave123', '¿En qué ciudad naciste?', 'madrid');
   assert.strictEqual(account.username, 'jugador_uno');
   assert.strictEqual(account.provider, 'local');
 

@@ -95,8 +95,13 @@ public/                ← frontend SPA vanilla (sin framework)
 ## Bucle de juego
 
 1. Crea tu cuenta (usuario y contraseña; en modo navegador las cuentas viven en
-   localStorage). El campo `provider` de las cuentas deja preparada la
-   integración futura de OAuth (p. ej. Google) sin tocar la lógica del juego.
+   localStorage). El registro incluye una **pregunta de seguridad** para
+   recuperar la contraseña si la olvidas (enlaces "¿Olvidaste tu contraseña?"
+   en el login y "🔑 Recuperación" en la barra lateral; también sirve para
+   configurarla en cuentas creadas antes de esta función). La respuesta se
+   guarda solo como hash con salt. El campo `provider` de las cuentas deja
+   preparada la integración futura de OAuth (p. ej. Google) sin tocar la
+   lógica del juego.
 2. Funda tu club (nombre, ciudad, colores, formación, **país de la liga** —
    da nacionalidad y coherencia de nombres a los jugadores — y **editor de
    escudo y camiseta** con vista previa en vivo).
@@ -104,16 +109,28 @@ public/                ← frontend SPA vanilla (sin framework)
 4. Juega la jornada en vivo: eventos minuto a minuto, **minimapa** con la
    posición de los jugadores y el balón, fuera de juego, **control de
    velocidad** (0.5×–4×), medidor de **pasión de la grada** (el público local
-   empuja si va perdiendo) y cambios en el descanso y en el minuto 75.
+   empuja si va perdiendo) y cambios en el descanso. Los partidos se juegan
+   hasta el minuto 90 **más tiempo añadido** (1–6 min según goles, cambios,
+   tarjetas y lesiones de la segunda parte, anunciado con un evento ⏱️).
    O simula el resultado directamente.
+5. Entrena y desarrolla: cada mejora de atributo en el entrenamiento semanal
+   y cada buen partido (nota ≥ 7.5 o gol) genera **puntos de habilidad**.
+   En el perfil del jugador puedes gastarlos en su **árbol de habilidades**
+   por posición (3 tiers con requisitos previos): las skills desbloqueadas
+   mejoran atributos concretos y se reflejan en el **gráfico de radar**
+   (ritmo, tiro, pase, regate, defensa, físico; porteros con sus 4
+   atributos propios).
+6. Avanza la semana: finanzas, entrenamientos, cantera, mercado de la IA,
+   ofertas, recuperación de lesionados, sincronización de wallets y **nuevas
+   ofertas de patrocinio**.
 5. Avanza la semana: finanzas, entrenamientos, cantera, mercado de la IA,
    ofertas, recuperación de lesionados, sincronización de wallets y **nuevas
    ofertas de patrocinio**.
-6. Negocia patrocinios: camiseta y gradas del estadio (aceptar, contraoferta
+7. Negocia patrocinios: camiseta y gradas del estadio (aceptar, contraoferta
    con riesgo de que retiren la oferta, rechazar). Los contratos se abonan
    semanalmente y caducan al terminar las temporadas firmadas.
-7. Ficha, vende, renueva contratos, mejora instalaciones, promociona canteranos.
-8. Tras 22 jornadas: premios, reparto de taquilla por posición y nueva
+8. Ficha, vende, renueva contratos, mejora instalaciones, promociona canteranos.
+9. Tras 22 jornadas: premios, reparto de taquilla por posición y nueva
    temporada (envejecimiento, retiradas, contratos que expiran, agentes libres,
    vencimiento de patrocinios).
 
@@ -130,3 +147,9 @@ public/                ← frontend SPA vanilla (sin framework)
   integración preparada. En modo navegador todo vive en el localStorage del
   cliente: adecuado para jugar, no para proteger secretos. Para cuentas reales
   multiusuario conviene desplegar el servidor Node (Railway/Render/VPS).
+- La recuperación de contraseña usa pregunta de seguridad (no hay envío de
+  email: el juego no depende de ningún servicio externo). Tras 5 respuestas
+  incorrectas la recuperación se bloquea 5 minutos. Si pierdes a la vez la
+  contraseña y la respuesta, no hay forma automática de recuperar la cuenta:
+  borra el archivo de cuentas del servidor (o los datos del navegador) y
+  empieza de nuevo.

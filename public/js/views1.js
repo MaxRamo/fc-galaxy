@@ -169,6 +169,68 @@ function attrBars(p) {
   }).join('');
 }
 
+function radarSvg(p) {
+  const keys = p.pos === 'GK' ? ['reflexes', 'handling', 'positioning', 'kicking'] :
+    ['pace', 'shooting', 'passing', 'dribbling', 'defending', 'physical'];
+  const n = keys.length;
+  const cx = 110, cy = 95, R = 68;
+  const pt = (i, frac) => {
+    const ang = -Math.PI / 2 + i * 2 * Math.PI / n;
+    return [cx + Math.cos(ang) * R * frac, cy + Math.sin(ang) * R * frac];
+  };
+  const poly = frac => keys.map((_, i) => pt(i, frac).map(v => v.toFixed(1)).join(',')).join(' ');
+  let svg = '<svg class="radar" viewBox="0 0 220 190" role="img" aria-label="Radar de atributos">';
+  for (const frac of [0.25, 0.5, 0.75, 1]) {
+    svg += '<polygon class="radar-grid" points="' + poly(frac) + '"/>';
+  }
+  keys.forEach((k, i) => {
+    const [x, y] = pt(i, 1);
+    svg += '<line class="radar-axis" x1="' + cx + '" y1="' + cy + '" x2="' + x.toFixed(1) + '" y2="' + y.toFixed(1) + '"/>';
+    const [lx, ly] = pt(i, 1.24);
+    const v = p.attrs[k] || 0;
+    const anchor = Math.abs(lx - cx) < 12 ? 'middle' : lx > cx ? 'start' : 'end';
+    svg += '<text class="radar-label" x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" text-anchor="' + anchor + '">' +
+      (ATTR_LABELS[k] || k) + ' <tspan class="radar-val">' + v + '</tspan></text>';
+  });
+  const data = keys.map((k, i) => {
+    const v = p.attrs[k] || 0;
+    return pt(i, Math.max(0.05, (v - 20) / 79)).map(c => c.toFixed(1)).join(',');
+  }).join(' ');
+  svg += '<polygon class="radar-data" points="' + data + '"/>';
+  svg += '</svg>';
+  return svg;
+}
+
+function skillTreeHtml(p) {
+  const tree = (S.skillTrees || {})[p.pos] || [];
+  const points = p.skillPoints || 0;
+  let html = '<div class="skill-tree"><div class="skill-head">' +
+    '<h3>\ud83c\udf31 \u00c1rbol de habilidades</h3>' +
+    '<span class="skill-points">Puntos: <strong>' + points + '</strong></span></div>' +
+    '<div class="skill-tiers">';
+  for (const tier of [1, 2, 3]) {
+    html += '<div class="skill-tier"><span class="skill-tier-label">Nivel ' + tier + '</span>';
+    for (const sk of tree.filter(x => x.tier === tier)) {
+      const unlocked = (p.skills || []).includes(sk.id);
+      const missing = (sk.requires || []).filter(r => !(p.skills || []).includes(r));
+      const locked = !unlocked && missing.length > 0;
+      const affordable = !unlocked && !locked && points >= sk.cost;
+      const state = unlocked ? 'unlocked' : locked ? 'locked' : affordable ? 'available' : 'no-points';
+      const reqText = missing.length ? 'Requiere: ' + missing.map(id => (tree.find(t => t.id === id) || {}).name || id).join(', ') : '';
+      html += '<div class="skill-node ' + state + '" data-skill="' + sk.id + '">' +
+        '<div class="skill-info"><strong>' + esc(sk.name) + '</strong>' +
+        '<p class="hint-line">' + esc(sk.desc) + '</p>' +
+        '<p class="hint-line skill-req">' + (unlocked ? '\u2714 Desbloqueada' : reqText ? esc(reqText) : '') + '</p></div>' +
+        '<div class="skill-side"><span class="skill-cost">' + sk.cost + ' pt' + (sk.cost > 1 ? 's' : '') + '</span>' +
+        (state === 'available' ? '<button class="btn small" data-unlock="' + sk.id + '">Desbloquear</button>' : '') +
+        '</div></div>';
+    }
+    html += '</div>';
+  }
+  html += '</div><p class="hint-line">Gana puntos entrenando (mejoras de atributos) y jugando partidos (nota \u2265 7.5 o gol).</p></div>';
+  return html;
+}
+
 function openPlayerModal(p) {
   if (!p) return;
   const club = userClub();
@@ -197,7 +259,7 @@ function openPlayerModal(p) {
       posTag(p.pos) + '<h2>' + (p.nationality ? flagOf(p.nationality) + ' ' : '') + esc(p.name) + '</h2>' + ovrBadge(p.overall) + statusOf(p) +
     '</div>' +
     '<div class="grid grid-2">' +
-      '<div>' + attrBars(p) + '</div>' +
+      '<div>' + radarSvg(p) + attrBars(p) + '</div>' +
       '<div class="player-info">' +
         '<p><span>Edad</span><strong>' + p.age + ' a\u00f1os</strong></p>' +
         '<p><span>Potencial</span><strong>' + potentialText(p) + '</strong></p>' +
@@ -214,11 +276,26 @@ function openPlayerModal(p) {
         '<p><span>Tarjetas</span><strong>\ud83d\udfe8 ' + s.yellow + ' \u00b7 \ud83d\udfe5 ' + s.red + '</strong></p>' +
       '</div>' +
     '</div>' +
+    (mine ? skillTreeHtml(p) : '') +
     (listing ? '<p class="sim-note">Este jugador est\u00e1 publicado en el mercado por ' + fmtMoney(listing.price) + ' FCG.</p>' : '') +
     actions
   );
 
   if (!mine) return;
+  document.querySelectorAll('[data-unlock]').forEach(btn =>
+    btn.addEventListener('click', async () => {
+      const skillId = btn.dataset.unlock;
+      btn.classList.add('loading'); btn.disabled = true;
+      try {
+        const r = await API.post('/api/player/skill', { playerId: p.id, skillId });
+        if (r.snapshot) S = r.snapshot;
+        toast(r.message || 'Habilidad desbloqueada.');
+        openPlayerModal(S.players[p.id]);
+      } catch (err) {
+        btn.classList.remove('loading'); btn.disabled = false;
+        toast(err.message, 'error');
+      }
+    }));
   document.getElementById('pm-renew').addEventListener('click', () => renewContractModal(p));
   document.getElementById('pm-list').addEventListener('click', () => listPlayerModal(p));
   document.getElementById('pm-train').addEventListener('change', async e => {

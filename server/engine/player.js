@@ -74,6 +74,8 @@ function generatePlayer(rng, opts) {
     pos,
     age,
     attrs,
+    skills: [],
+    skillPoints: 0,
     potential: clamp(Math.round(base + growthLeft + (age <= 21 ? rng.int(0, 8) : 0)), 30, 96),
     morale: rng.int(60, 85),
     fatigue: rng.int(0, 15),

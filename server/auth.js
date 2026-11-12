@@ -30,12 +30,14 @@ function createAuth(dataDir) {
   loadDb();
 
   return {
-    register(username, password) {
+    register(username, password, recoveryQuestion, recoveryAnswer) {
       const u = core.validateUsername(username);
       core.validatePassword(password);
       if (db.accounts[u]) throw new Error('Ese usuario ya existe');
       const id = 'acc-' + crypto.randomBytes(6).toString('hex');
-      db.accounts[u] = core.newAccount(id, u, password, hashFn, 'local');
+      const acc = core.newAccount(id, u, password, hashFn, 'local');
+      core.setRecovery(acc, recoveryQuestion, recoveryAnswer, hashFn);
+      db.accounts[u] = acc;
       saveDb();
       return db.accounts[u];
     },
@@ -68,6 +70,39 @@ function createAuth(dataDir) {
 
     logout(token) {
       if (token && db.sessions[token]) { delete db.sessions[token]; saveDb(); }
+    },
+
+    getRecoveryQuestion(username) {
+      const u = core.validateUsername(username);
+      const acc = db.accounts[u];
+      if (!acc || !core.hasRecovery(acc)) {
+        throw new Error('No hay pregunta de recuperación para ese usuario');
+      }
+      return acc.recovery.q;
+    },
+
+    resetPassword(username, answer, newPassword) {
+      const u = core.validateUsername(username);
+      core.validatePassword(newPassword);
+      const acc = db.accounts[u];
+      if (!acc) throw new Error('No hay pregunta de recuperación para ese usuario');
+      core.verifyRecoveryAnswer(acc, answer, hashFn);
+      acc.hash = core.hashPassword(newPassword, acc.salt, hashFn);
+      for (const [t, s] of Object.entries(db.sessions)) {
+        if (s.accountId === acc.id) delete db.sessions[t];
+      }
+      const token = crypto.randomBytes(32).toString('hex');
+      db.sessions[token] = { accountId: acc.id, username: u, createdAt: Date.now() };
+      saveDb();
+      return { token, account: { id: acc.id, username: acc.username, provider: acc.provider } };
+    },
+
+    setRecoveryQuestion(accountId, question, answer) {
+      const acc = Object.values(db.accounts).find(a => a.id === accountId);
+      if (!acc) throw new Error('Cuenta no encontrada');
+      core.setRecovery(acc, question, answer, hashFn);
+      saveDb();
+      return { ok: true };
     }
   };
 }

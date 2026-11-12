@@ -254,7 +254,7 @@ body {
 .btn.loading.secondary::after { border-color: rgba(147,162,186,0.4); border-top-color: var(--text); }
 
 /* ---------- Formularios ---------- */
-select, input[type="text"], input[type="number"], input[type="color"] {
+select, input[type="text"], input[type="password"], input[type="number"], input[type="color"] {
   background: var(--bg-3); border: 1px solid var(--border-2); color: var(--text);
   border-radius: var(--radius-sm); padding: 9px 12px; font-size: var(--fs-md); font-family: var(--font);
   outline: none; width: 100%; transition: border-color var(--t-fast), box-shadow var(--t-fast);
@@ -833,3 +833,52 @@ input[type="color"] { height: 42px; padding: 4px; cursor: pointer; }
   .identity-preview { flex-direction: row; justify-content: center; }
   .speed-controls { width: 100%; justify-content: center; }
 }
+
+/* Radar de atributos y árbol de habilidades */
+.radar { width: 100%; max-width: 240px; display: block; margin: 0 auto var(--s2); }
+.radar-grid { fill: none; stroke: var(--border-2); stroke-width: 1; }
+.radar-axis { stroke: var(--border-2); stroke-width: 1; }
+.radar-data {
+  fill: rgba(0, 232, 123, 0.22); stroke: var(--accent); stroke-width: 2;
+  stroke-linejoin: round; transition: all 0.5s var(--ease);
+}
+.radar-label { fill: var(--text-dim); font-size: 10px; font-family: var(--font); }
+.radar-val { fill: var(--text); font-weight: 700; }
+
+.skill-tree { margin-top: var(--s3); border-top: 1px solid var(--border); padding-top: var(--s3); }
+.skill-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s2); }
+.skill-head h3 { margin: 0; }
+.skill-points { font-size: var(--fs-sm); color: var(--text-dim); }
+.skill-points strong { color: var(--accent); font-size: var(--fs-lg); }
+.skill-tiers { display: flex; flex-direction: column; gap: var(--s2); margin-top: var(--s2); }
+.skill-tier { display: grid; grid-template-columns: 64px 1fr; gap: var(--s2); align-items: start; }
+.skill-tier-label {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-faint);
+  padding-top: 10px;
+}
+.skill-node {
+  display: flex; justify-content: space-between; gap: var(--s2); align-items: center;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: var(--s2) var(--s3); margin-bottom: 6px; background: var(--bg-3);
+  transition: border-color var(--ease), opacity var(--ease);
+}
+.skill-node strong { font-size: var(--fs-md); }
+.skill-node .hint-line { margin: 2px 0 0; }
+.skill-node.unlocked { border-left: 3px solid var(--ok); }
+.skill-node.available { border-color: var(--accent); }
+.skill-node.locked, .skill-node.no-points { opacity: 0.55; }
+.skill-node.locked { border-left: 3px solid var(--warn); }
+.skill-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+.skill-cost { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+.skill-req { color: var(--text-faint); }
+.ev-added { border-left-color: var(--accent); }
+
+@media (max-width: 640px) {
+  .skill-tier { grid-template-columns: 1fr; }
+  .skill-tier-label { padding-top: 0; }
+}
+
+/* ---------- Recuperación de contraseña ---------- */
+.auth-link { color: var(--accent); text-decoration: none; font-weight: 600; }
+.auth-link:hover { text-decoration: underline; }
+.req-note { font-style: normal; font-size: var(--fs-xs); color: var(--text-faint); font-weight: 400; }

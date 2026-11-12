@@ -25,6 +25,7 @@ const MODULES = [
   'server/engine/youth.js',
   'server/engine/market.js',
   'server/engine/sponsors.js',
+  'server/engine/skills.js',
   'server/engine/game.js',
   'server/auth-core.js',
   'server/auth-browser.js',
@@ -68,8 +69,18 @@ module.exports = {
     body = body || {};
     try {
       if (path === '/api/auth/register' && method === 'POST') {
-        const acc = auth.register(body.username, body.password);
+        const acc = auth.register(body.username, body.password, body.recoveryQuestion, body.recoveryAnswer);
         const { account } = auth.login(body.username, body.password);
+        storeMod.adoptLegacy(account.id);
+        current = account; ctx = null;
+        return { status: 200, data: { account } };
+      }
+      if (path === '/api/auth/recover/question' && method === 'POST') {
+        const question = auth.getRecoveryQuestion(body.username);
+        return { status: 200, data: { question } };
+      }
+      if (path === '/api/auth/recover/reset' && method === 'POST') {
+        const { account } = auth.resetPassword(body.username, body.answer, body.password);
         storeMod.adoptLegacy(account.id);
         current = account; ctx = null;
         return { status: 200, data: { account } };
@@ -95,6 +106,10 @@ module.exports = {
     }
 
     if (!current) return { status: 401, data: { error: 'Inicia sesi\u00f3n para jugar', authRequired: true } };
+    if (path === '/api/auth/recovery-question' && method === 'POST') {
+      const r = auth.setRecoveryQuestion(current.id, body.question, body.answer);
+      return { status: 200, data: r };
+    }
     const c = contextFor(current.id);
     const handler = c.routes[method + ' ' + path];
     if (!handler) return { status: 404, data: { error: 'Endpoint no encontrado: ' + method + ' ' + path } };
