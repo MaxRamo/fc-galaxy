@@ -36,19 +36,19 @@ test('bundle navegador: auth obligatoria y errores de cuenta controlados', () =>
   assert.strictEqual(denied.status, 401);
   assert.strictEqual(denied.data.authRequired, true);
 
-  const badUser = L.handle('POST', '/api/auth/register', { username: 'a', password: 'clave123' });
+  const badUser = L.handle('POST', '/api/auth/register', { username: 'a', password: 'clave123', recoveryQuestion: '¿Cuál es el nombre de tu primera mascota?', recoveryAnswer: 'Rex' });
   assert.strictEqual(badUser.status, 400);
   assert.ok(badUser.data.error);
 
   const badPass = L.handle('POST', '/api/auth/register', { username: 'jugador', password: '12345' });
   assert.strictEqual(badPass.status, 400);
 
-  const ok = L.handle('POST', '/api/auth/register', { username: 'jugador', password: 'clave123' });
+  const ok = L.handle('POST', '/api/auth/register', { username: 'jugador', password: 'clave123', recoveryQuestion: '¿Cuál es el nombre de tu primera mascota?', recoveryAnswer: 'Rex' });
   assert.strictEqual(ok.status, 200);
   assert.ok(ok.data.account.id);
   assert.strictEqual(ok.data.account.provider, 'local');
 
-  const dup = L.handle('POST', '/api/auth/register', { username: 'jugador', password: 'clave123' });
+  const dup = L.handle('POST', '/api/auth/register', { username: 'jugador', password: 'clave123', recoveryQuestion: '¿Cuál es el nombre de tu primera mascota?', recoveryAnswer: 'Rex' });
   assert.strictEqual(dup.status, 400);
   assert.ok(dup.data.error.includes('ya existe'));
 
@@ -70,7 +70,7 @@ test('bundle navegador: ciclo de juego completo sin servidor', () => {
   assert.ok(L, 'FC_LOCAL expuesto');
   assert.strictEqual(L.mode, 'browser');
 
-  const acc = L.handle('POST', '/api/auth/register', { username: 'ciclo', password: 'clave123' }).data.account;
+  const acc = L.handle('POST', '/api/auth/register', { username: 'ciclo', password: 'clave123', recoveryQuestion: '¿Cuál es el nombre de tu primera mascota?', recoveryAnswer: 'Rex' }).data.account;
   const saveKey = 'fc-galaxy-save-' + acc.id;
 
   const call = (m, p, b) => {
@@ -122,7 +122,7 @@ test('bundle navegador: ciclo de juego completo sin servidor', () => {
 
 test('bundle navegador: persistencia por cuenta entre "sesiones" y errores controlados', () => {
   const { L, mem } = loadBundle();
-  const acc = L.handle('POST', '/api/auth/register', { username: 'sesion', password: 'clave123' }).data.account;
+  const acc = L.handle('POST', '/api/auth/register', { username: 'sesion', password: 'clave123', recoveryQuestion: '¿Cuál es el nombre de tu primera mascota?', recoveryAnswer: 'Rex' }).data.account;
   const r1 = L.handle('POST', '/api/game/new', { clubName: 'Sesion Uno' });
   assert.strictEqual(r1.status, 200);
   L.handle('POST', '/api/match/sim');
@@ -154,7 +154,7 @@ test('bundle navegador: cuentas aisladas y adopción de partida legacy', () => {
   for (const p of Object.values(legacy.players)) delete p.nationality;
   mem['fc-galaxy-save-v1'] = JSON.stringify(legacy);
 
-  const acc = L.handle('POST', '/api/auth/register', { username: 'legacy', password: 'clave123' }).data.account;
+  const acc = L.handle('POST', '/api/auth/register', { username: 'legacy', password: 'clave123', recoveryQuestion: '¿Cuál es el nombre de tu primera mascota?', recoveryAnswer: 'Rex' }).data.account;
   const st = L.handle('GET', '/api/state');
   assert.strictEqual(st.status, 200);
   assert.strictEqual(st.data.week, 9, 'la partida antigua se adopta en la cuenta nueva');
@@ -162,7 +162,7 @@ test('bundle navegador: cuentas aisladas y adopción de partida legacy', () => {
   assert.ok(st.data.clubs[st.data.userClubId].country, 'país asignado en la migración');
 
   L.handle('POST', '/api/auth/logout');
-  const acc2 = L.handle('POST', '/api/auth/register', { username: 'otro', password: 'clave123' }).data.account;
+  const acc2 = L.handle('POST', '/api/auth/register', { username: 'otro', password: 'clave123', recoveryQuestion: '¿Cuál es el nombre de tu primera mascota?', recoveryAnswer: 'Rex' }).data.account;
   assert.notStrictEqual(acc2.id, acc.id);
   const st2 = L.handle('GET', '/api/state');
   assert.strictEqual(st2.data.phase, 'setup', 'cada cuenta tiene su partida independiente');

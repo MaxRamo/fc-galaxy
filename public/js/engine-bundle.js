@@ -2638,7 +2638,80 @@ function newAccount(id, username, password, hashFn, provider) {
   };
 }
 
-module.exports = { validateUsername, validatePassword, hashPassword, verifyPassword, newAccount, USERNAME_RE };
+/* ---------- Recuperación de contraseña ----------
+   Sin email: pregunta de seguridad elegida por el usuario. La respuesta se
+   guarda solo como hash con salt propio, normalizada para comparar. */
+
+const RECOVERY_QUESTIONS = [
+  '¿Cuál es el nombre de tu primera mascota?',
+  '¿En qué ciudad naciste?',
+  '¿Cuál es el nombre de tu mejor amigo/a de la infancia?',
+  '¿Cuál fue tu primer videojuego?',
+  '¿Cómo se llama tu equipo favorito?'
+];
+
+function normalizeAnswer(answer) {
+  return String(answer || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function validateRecoveryQuestion(question) {
+  const q = String(question || '').trim();
+  if (q.length < 5 || q.length > 200) throw new Error('La pregunta de recuperación debe tener entre 5 y 200 caracteres');
+  return q;
+}
+
+function validateRecoveryAnswer(answer) {
+  const a = normalizeAnswer(answer);
+  if (a.length < 2) throw new Error('La respuesta de recuperación debe tener al menos 2 caracteres');
+  if (a.length > 100) throw new Error('Respuesta de recuperación demasiado larga');
+  return a;
+}
+
+function setRecovery(acc, question, answer, hashFn) {
+  const q = validateRecoveryQuestion(question);
+  const a = validateRecoveryAnswer(answer);
+  const aSalt = acc.id + '-r-' + Math.floor(Math.random() * 0xffffffff).toString(36);
+  acc.recovery = {
+    q,
+    aSalt,
+    aHash: hashPassword(a, aSalt, hashFn),
+    fails: 0,
+    lockedUntil: 0
+  };
+  return acc.recovery;
+}
+
+function hasRecovery(acc) {
+  return !!(acc && acc.recovery && acc.recovery.q && acc.recovery.aHash);
+}
+
+function verifyRecoveryAnswer(acc, answer, hashFn) {
+  if (!hasRecovery(acc)) throw new Error('Esta cuenta no tiene pregunta de recuperación configurada');
+  const now = Date.now();
+  if (acc.recovery.lockedUntil && acc.recovery.lockedUntil > now) {
+    const mins = Math.ceil((acc.recovery.lockedUntil - now) / 60000);
+    throw new Error('Demasiados intentos fallidos. Espera ' + mins + ' min y vuelve a intentarlo');
+  }
+  const a = validateRecoveryAnswer(answer);
+  if (!verifyPassword(a, acc.recovery.aSalt, acc.recovery.aHash, hashFn)) {
+    acc.recovery.fails = (acc.recovery.fails || 0) + 1;
+    if (acc.recovery.fails >= 5) {
+      acc.recovery.fails = 0;
+      acc.recovery.lockedUntil = now + 5 * 60 * 1000;
+    }
+    throw new Error('Respuesta incorrecta');
+  }
+  acc.recovery.fails = 0;
+  acc.recovery.lockedUntil = 0;
+  return true;
+}
+
+module.exports = { validateUsername, validatePassword, hashPassword, verifyPassword, newAccount, USERNAME_RE, RECOVERY_QUESTIONS, normalizeAnswer, validateRecoveryQuestion, validateRecoveryAnswer, setRecovery, hasRecovery, verifyRecoveryAnswer };
 
 },
   "server/auth-browser.js": function (exports, require, module) {
@@ -2677,13 +2750,15 @@ function createBrowserAuth() {
   function publicAccount(acc) { return { id: acc.id, username: acc.username, provider: acc.provider }; }
 
   return {
-    register(username, password) {
+    register(username, password, recoveryQuestion, recoveryAnswer) {
       const u = core.validateUsername(username);
       core.validatePassword(password);
       const db = loadDb();
       if (db.accounts[u]) throw new Error('Ese usuario ya existe');
       const id = 'acc-' + Math.floor(Math.random() * 0xffffffff).toString(36);
-      db.accounts[u] = core.newAccount(id, u, password, sha256Hex, 'local');
+      const acc = core.newAccount(id, u, password, sha256Hex, 'local');
+      core.setRecovery(acc, recoveryQuestion, recoveryAnswer, sha256Hex);
+      db.accounts[u] = acc;
       saveDb(db);
       return db.accounts[u];
     },
@@ -2716,7 +2791,39 @@ function createBrowserAuth() {
         return acc ? publicAccount(acc) : null;
       } catch (e) { return null; }
     },
-    logout() { storage().removeItem(SESSION_KEY); }
+    logout() { storage().removeItem(SESSION_KEY); },
+
+    getRecoveryQuestion(username) {
+      const u = core.validateUsername(username);
+      const acc = loadDb().accounts[u];
+      if (!acc || !core.hasRecovery(acc)) {
+        throw new Error('No hay pregunta de recuperación para ese usuario');
+      }
+      return acc.recovery.q;
+    },
+
+    resetPassword(username, answer, newPassword) {
+      const u = core.validateUsername(username);
+      core.validatePassword(newPassword);
+      const db = loadDb();
+      const acc = db.accounts[u];
+      if (!acc) throw new Error('No hay pregunta de recuperación para ese usuario');
+      core.verifyRecoveryAnswer(acc, answer, sha256Hex);
+      acc.hash = core.hashPassword(newPassword, acc.salt, sha256Hex);
+      saveDb(db);
+      const token = 'tok-' + Math.floor(Math.random() * 0xffffffff).toString(36) + Date.now().toString(36);
+      storage().setItem(SESSION_KEY, JSON.stringify({ token, accountId: acc.id }));
+      return { token, account: publicAccount(acc) };
+    },
+
+    setRecoveryQuestion(accountId, question, answer) {
+      const db = loadDb();
+      const acc = Object.values(db.accounts).find(a => a.id === accountId);
+      if (!acc) throw new Error('Cuenta no encontrada');
+      core.setRecovery(acc, question, answer, sha256Hex);
+      saveDb(db);
+      return { ok: true };
+    }
   };
 }
 
@@ -3134,8 +3241,18 @@ module.exports = {
     body = body || {};
     try {
       if (path === '/api/auth/register' && method === 'POST') {
-        const acc = auth.register(body.username, body.password);
+        const acc = auth.register(body.username, body.password, body.recoveryQuestion, body.recoveryAnswer);
         const { account } = auth.login(body.username, body.password);
+        storeMod.adoptLegacy(account.id);
+        current = account; ctx = null;
+        return { status: 200, data: { account } };
+      }
+      if (path === '/api/auth/recover/question' && method === 'POST') {
+        const question = auth.getRecoveryQuestion(body.username);
+        return { status: 200, data: { question } };
+      }
+      if (path === '/api/auth/recover/reset' && method === 'POST') {
+        const { account } = auth.resetPassword(body.username, body.answer, body.password);
         storeMod.adoptLegacy(account.id);
         current = account; ctx = null;
         return { status: 200, data: { account } };
@@ -3161,6 +3278,10 @@ module.exports = {
     }
 
     if (!current) return { status: 401, data: { error: 'Inicia sesión para jugar', authRequired: true } };
+    if (path === '/api/auth/recovery-question' && method === 'POST') {
+      const r = auth.setRecoveryQuestion(current.id, body.question, body.answer);
+      return { status: 200, data: r };
+    }
     const c = contextFor(current.id);
     const handler = c.routes[method + ' ' + path];
     if (!handler) return { status: 404, data: { error: 'Endpoint no encontrado: ' + method + ' ' + path } };

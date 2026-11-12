@@ -103,9 +103,17 @@ const server = http.createServer((req, res) => {
 
       try {
         if (pathname === '/api/auth/register' && req.method === 'POST') {
-          const acc = auth.register(body.username, body.password);
+          const acc = auth.register(body.username, body.password, body.recoveryQuestion, body.recoveryAnswer);
           const { token: t } = auth.login(body.username, body.password);
           return sendJson(res, 200, { account: { id: acc.id, username: acc.username, provider: acc.provider } }, sessionCookie(t, 30));
+        }
+        if (pathname === '/api/auth/recover/question' && req.method === 'POST') {
+          const question = auth.getRecoveryQuestion(body.username);
+          return sendJson(res, 200, { question });
+        }
+        if (pathname === '/api/auth/recover/reset' && req.method === 'POST') {
+          const { token: t, account } = auth.resetPassword(body.username, body.answer, body.password);
+          return sendJson(res, 200, { account }, sessionCookie(t, 30));
         }
         if (pathname === '/api/auth/login' && req.method === 'POST') {
           const { token: t, account } = auth.login(body.username, body.password);
@@ -127,6 +135,15 @@ const server = http.createServer((req, res) => {
       const account = auth.verify(token);
       if (!account) {
         return sendJson(res, 401, { error: 'Inicia sesi\u00f3n para jugar', authRequired: true });
+      }
+
+      if (pathname === '/api/auth/recovery-question' && req.method === 'POST') {
+        try {
+          auth.setRecoveryQuestion(account.id, body.question, body.answer);
+          return sendJson(res, 200, { ok: true, message: 'Pregunta de recuperación guardada' });
+        } catch (err) {
+          return sendJson(res, 400, { error: err.message });
+        }
       }
 
       const { routes } = sessionContext(account.id);

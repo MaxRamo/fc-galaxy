@@ -254,7 +254,7 @@ body {
 .btn.loading.secondary::after { border-color: rgba(147,162,186,0.4); border-top-color: var(--text); }
 
 /* ---------- Formularios ---------- */
-select, input[type="text"], input[type="number"], input[type="color"] {
+select, input[type="text"], input[type="password"], input[type="number"], input[type="color"] {
   background: var(--bg-3); border: 1px solid var(--border-2); color: var(--text);
   border-radius: var(--radius-sm); padding: 9px 12px; font-size: var(--fs-md); font-family: var(--font);
   outline: none; width: 100%; transition: border-color var(--t-fast), box-shadow var(--t-fast);
@@ -877,3 +877,8 @@ input[type="color"] { height: 42px; padding: 4px; cursor: pointer; }
   .skill-tier { grid-template-columns: 1fr; }
   .skill-tier-label { padding-top: 0; }
 }
+
+/* ---------- Recuperación de contraseña ---------- */
+.auth-link { color: var(--accent); text-decoration: none; font-weight: 600; }
+.auth-link:hover { text-decoration: underline; }
+.req-note { font-style: normal; font-size: var(--fs-xs); color: var(--text-faint); font-weight: 400; }

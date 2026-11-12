@@ -195,6 +195,22 @@ function render() {
 
 /* ---------- Inicio de sesión / registro ---------- */
 
+const RECOVERY_QUESTIONS = [
+  '¿Cuál es el nombre de tu primera mascota?',
+  '¿En qué ciudad naciste?',
+  '¿Cuál es el nombre de tu mejor amigo/a de la infancia?',
+  '¿Cuál fue tu primer videojuego?',
+  '¿Cómo se llama tu equipo favorito?'
+];
+
+function recoveryFieldsHtml() {
+  const opts = RECOVERY_QUESTIONS.map(q => '<option value="' + esc(q) + '">' + esc(q) + '</option>').join('');
+  return '<label class="field"><span>Pregunta de seguridad <em class="req-note">(para recuperar tu contraseña)</em></span>' +
+    '<select name="recoveryQuestion" id="recovery-q">' + opts + '<option value="__custom__">Otra (escribir)…</option></select></label>' +
+    '<label class="field" id="recovery-q-custom" style="display:none"><span>Tu pregunta</span><input type="text" name="recoveryQuestionCustom" minlength="5" maxlength="200" placeholder="Escribe tu pregunta"></label>' +
+    '<label class="field"><span>Respuesta secreta</span><input type="text" name="recoveryAnswer" required minlength="2" maxlength="100" autocomplete="off" placeholder="No la compartas con nadie"></label>';
+}
+
 function renderLogin(mode) {
   mode = mode || 'login';
   const isReg = mode === 'register';
@@ -211,16 +227,29 @@ function renderLogin(mode) {
     '<form id="auth-form">' +
       '<label class="field"><span>Usuario</span><input type="text" name="username" required minlength="3" maxlength="20" autocomplete="username" placeholder="3-20 caracteres"></label>' +
       '<label class="field"><span>Contraseña</span><input type="password" name="password" required minlength="6" maxlength="128" autocomplete="' + (isReg ? 'new-password' : 'current-password') + '" placeholder="mínimo 6 caracteres"></label>' +
+      (isReg ? recoveryFieldsHtml() : '') +
       '<button class="btn big" style="width:100%" type="submit">' + (isReg ? '🚀 Crear cuenta y jugar' : '▶️ Entrar') + '</button>' +
-      '<p class="hint-line" style="text-align:center">Cada cuenta tiene su propia partida guardada. En el modo navegador las cuentas viven en este dispositivo.</p>' +
+      '<p class="hint-line" style="text-align:center">' +
+        (!isReg ? '<a href="#" id="link-forgot" class="auth-link">¿Olvidaste tu contraseña?</a> · ' : '') +
+        'Cada cuenta tiene su propia partida guardada. En el modo navegador las cuentas viven en este dispositivo.</p>' +
     '</form>' +
   '</div></div>';
 
   document.getElementById('tab-login').addEventListener('click', () => renderLogin('login'));
   document.getElementById('tab-register').addEventListener('click', () => renderLogin('register'));
+  const sel = document.getElementById('recovery-q');
+  if (sel) sel.addEventListener('change', () => {
+    document.getElementById('recovery-q-custom').style.display = sel.value === '__custom__' ? '' : 'none';
+  });
+  const forgot = document.getElementById('link-forgot');
+  if (forgot) forgot.addEventListener('click', e => { e.preventDefault(); renderRecover(); });
   document.getElementById('auth-form').addEventListener('submit', async e => {
     e.preventDefault();
     const body = Object.fromEntries(new FormData(e.target).entries());
+    if (isReg) {
+      body.recoveryQuestion = body.recoveryQuestion === '__custom__' ? (body.recoveryQuestionCustom || '') : body.recoveryQuestion;
+      delete body.recoveryQuestionCustom;
+    }
     const btn = e.target.querySelector('button[type=submit]');
     btn.classList.add('loading'); btn.disabled = true;
     try {
@@ -231,6 +260,83 @@ function renderLogin(mode) {
     } catch (err) {
       toast(err.message, 'error');
       btn.classList.remove('loading'); btn.disabled = false;
+    }
+  });
+}
+
+function renderRecover(step, data) {
+  step = step || 'user';
+  data = data || {};
+  const form = step === 'user'
+    ? '<form id="recover-form">' +
+        '<label class="field"><span>Usuario</span><input type="text" name="username" required minlength="3" maxlength="20" autocomplete="username"></label>' +
+        '<button class="btn big" style="width:100%" type="submit">Continuar</button>' +
+      '</form>'
+    : '<p class="hint-line"><strong>Pregunta de seguridad:</strong> ' + esc(data.question) + '</p>' +
+      '<form id="recover-form">' +
+        '<input type="hidden" name="username" value="' + esc(data.username) + '">' +
+        '<label class="field"><span>Tu respuesta</span><input type="text" name="answer" required minlength="2" maxlength="100" autocomplete="off"></label>' +
+        '<label class="field"><span>Nueva contraseña</span><input type="password" name="password" required minlength="6" maxlength="128" autocomplete="new-password" placeholder="mínimo 6 caracteres"></label>' +
+        '<button class="btn big" style="width:100%" type="submit">🔑 Restablecer contraseña</button>' +
+      '</form>';
+  $app.innerHTML =
+  '<div class="setup-wrap"><div class="card setup-card auth-card">' +
+    '<div class="setup-hero">' +
+      '<h1>🔑 Recuperar <span class="accent">contraseña</span></h1>' +
+      '<p>' + (step === 'user' ? 'Introduce tu usuario para ver tu pregunta de seguridad.' : 'Responde tu pregunta de seguridad para restablecer la contraseña.') + '</p>' +
+    '</div>' + form +
+    '<p class="hint-line" style="text-align:center"><a href="#" id="link-back" class="auth-link">← Volver a iniciar sesión</a></p>' +
+  '</div></div>';
+
+  document.getElementById('link-back').addEventListener('click', e => { e.preventDefault(); renderLogin('login'); });
+  document.getElementById('recover-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const body = Object.fromEntries(new FormData(e.target).entries());
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.classList.add('loading'); btn.disabled = true;
+    try {
+      if (step === 'user') {
+        const r = await API.post('/api/auth/recover/question', { username: body.username });
+        renderRecover('reset', { username: body.username.trim().toLowerCase(), question: r.question });
+      } else {
+        const r = await API.post('/api/auth/recover/reset', body);
+        User = r.account;
+        toast('Contraseña restablecida. ¡Bienvenido de nuevo, ' + r.account.username + '!');
+        await bootLoadState();
+      }
+    } catch (err) {
+      toast(err.message, 'error');
+      btn.classList.remove('loading'); btn.disabled = false;
+    }
+  });
+}
+
+function openRecoveryModal() {
+  const wrap = document.createElement('div');
+  wrap.className = 'modal-overlay';
+  wrap.innerHTML =
+    '<div class="modal"><h2>🔑 Recuperación de contraseña</h2>' +
+      '<p class="hint-line">Configura (o cambia) tu pregunta de seguridad. Si algún día olvidas la contraseña, podrás restablecerla respondiendo esta pregunta.</p>' +
+      '<form id="recovery-modal-form">' +
+        '<label class="field"><span>Pregunta</span><input type="text" name="question" required minlength="5" maxlength="200" value=""></label>' +
+        '<label class="field"><span>Respuesta secreta</span><input type="text" name="answer" required minlength="2" maxlength="100" autocomplete="off"></label>' +
+        '<div class="modal-actions">' +
+          '<button type="button" class="btn secondary" id="recovery-cancel">Cancelar</button>' +
+          '<button type="submit" class="btn">Guardar</button>' +
+        '</div>' +
+      '</form></div>';
+  document.body.appendChild(wrap);
+  wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
+  wrap.querySelector('#recovery-cancel').addEventListener('click', () => wrap.remove());
+  wrap.querySelector('#recovery-modal-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const body = Object.fromEntries(new FormData(e.target).entries());
+    try {
+      await API.post('/api/auth/recovery-question', body);
+      toast('Pregunta de recuperación guardada.');
+      wrap.remove();
+    } catch (err) {
+      toast(err.message, 'error');
     }
   });
 }
@@ -264,7 +370,7 @@ function renderShell() {
       '<div class="brand"><span class="logo">⚽</span>FC <span class="accent">GALAXY</span></div>' +
       '<nav class="nav">' + navHtml() + '</nav>' +
       '<div class="sidebar-footer">Temporada ' + S.season + ' · Semana ' + S.week + '<br>Blockchain: <strong style="color:var(--purple)">SIMULADA</strong>' +
-      (User ? '<br>👤 ' + esc(User.username) + ' <button class="btn secondary small" id="btn-logout" style="margin-top:6px">Salir</button>' : '') + '</div>' +
+      (User ? '<br>👤 ' + esc(User.username) + ' <button class="btn secondary small" id="btn-recovery" style="margin-top:6px">🔑 Recuperación</button> <button class="btn secondary small" id="btn-logout" style="margin-top:6px">Salir</button>' : '') + '</div>' +
  S.week + '<br>Blockchain: <strong style="color:var(--purple)">SIMULADA</strong></div>' +
     '</aside>' +
     '<div class="main">' +
@@ -287,6 +393,8 @@ function renderShell() {
   bindNav($app);
   const lo = document.getElementById('btn-logout');
   if (lo) lo.addEventListener('click', logout);
+  const rec = document.getElementById('btn-recovery');
+  if (rec) rec.addEventListener('click', openRecoveryModal);
   const adv = document.getElementById('btn-advance');
   if (adv) adv.addEventListener('click', advanceWeek);
   const ns = document.getElementById('btn-newseason');

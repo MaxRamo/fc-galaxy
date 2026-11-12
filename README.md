@@ -95,8 +95,13 @@ public/                ← frontend SPA vanilla (sin framework)
 ## Bucle de juego
 
 1. Crea tu cuenta (usuario y contraseña; en modo navegador las cuentas viven en
-   localStorage). El campo `provider` de las cuentas deja preparada la
-   integración futura de OAuth (p. ej. Google) sin tocar la lógica del juego.
+   localStorage). El registro incluye una **pregunta de seguridad** para
+   recuperar la contraseña si la olvidas (enlaces "¿Olvidaste tu contraseña?"
+   en el login y "🔑 Recuperación" en la barra lateral; también sirve para
+   configurarla en cuentas creadas antes de esta función). La respuesta se
+   guarda solo como hash con salt. El campo `provider` de las cuentas deja
+   preparada la integración futura de OAuth (p. ej. Google) sin tocar la
+   lógica del juego.
 2. Funda tu club (nombre, ciudad, colores, formación, **país de la liga** —
    da nacionalidad y coherencia de nombres a los jugadores — y **editor de
    escudo y camiseta** con vista previa en vivo).
@@ -142,3 +147,9 @@ public/                ← frontend SPA vanilla (sin framework)
   integración preparada. En modo navegador todo vive en el localStorage del
   cliente: adecuado para jugar, no para proteger secretos. Para cuentas reales
   multiusuario conviene desplegar el servidor Node (Railway/Render/VPS).
+- La recuperación de contraseña usa pregunta de seguridad (no hay envío de
+  email: el juego no depende de ningún servicio externo). Tras 5 respuestas
+  incorrectas la recuperación se bloquea 5 minutos. Si pierdes a la vez la
+  contraseña y la respuesta, no hay forma automática de recuperar la cuenta:
+  borra el archivo de cuentas del servidor (o los datos del navegador) y
+  empieza de nuevo.
