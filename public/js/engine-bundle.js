@@ -980,10 +980,6 @@ function runSegment(state, match, untilMinute) {
       pushEvent(match, { type: 'checkpoint', checkpoint: 'HT', text: 'Descanso: ' + home.shortName + ' ' + match.score[0] + '-' + match.score[1] + ' ' + away.shortName });
       return;
     }
-    if (min === 75 && match.userClubId) {
-      pushEvent(match, { type: 'checkpoint', checkpoint: 'M75', text: 'Minuto 75: última oportunidad para cambios tácticos' });
-      return;
-    }
   }
   finishMatch(state, match);
 }

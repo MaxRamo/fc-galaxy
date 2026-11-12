@@ -84,7 +84,7 @@ test('partidos: promedio de goles realista en 150 simulaciones', () => {
   assert.ok(avg > 1.6 && avg < 4.2, 'media de goles razonable, obtenida: ' + avg.toFixed(2));
 });
 
-test('partido del usuario: puntos de control en 45 y 75', () => {
+test('partido del usuario: punto de control solo en el descanso, sin pausa en el 75', () => {
   const state = game.newGame({ clubName: 'Control FC' });
   const match = game.startMatch(state);
   assert.ok(state.pendingMatch);
@@ -92,11 +92,11 @@ test('partido del usuario: puntos de control en 45 y 75', () => {
   assert.strictEqual(match.finished, false);
   const last = match.events[match.events.length - 1];
   assert.strictEqual(last.type, 'checkpoint');
+  assert.strictEqual(last.checkpoint, 'HT');
 
   const mid = game.resumeMatch(state, { mentality: 'attacking' });
-  assert.strictEqual(mid.minute, 75);
-  const fin = game.resumeMatch(state, {});
-  assert.strictEqual(fin.finished, true);
+  assert.strictEqual(mid.finished, true, 'sin pausa en el minuto 75: llega hasta el final');
+  assert.ok(mid.minute >= 90, 'minuto ' + mid.minute);
   assert.strictEqual(state.pendingMatch, null, 'commit al terminar');
   const fixture = state.league.fixtures[0].find(m => m.played);
   assert.ok(fixture, 'fixture actualizado');

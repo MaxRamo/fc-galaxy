@@ -340,7 +340,7 @@ function renderTacticalPanel(match, userSide) {
   const opp = S.clubs[match[oppSide === 'home' ? 'homeId' : 'awayId']];
   const club = userClub();
   return '<div class="tactical-panel">' +
-    '<h2>⏸️ ' + (mp.checkpoint === 'HT' ? 'Descanso' : 'Minuto 75') + ' — decide tu plan</h2>' +
+    '<h2>⏸️ ' + (mp.checkpoint === 'HT' ? 'Descanso' : 'Pausa táctica') + ' — decide tu plan</h2>' +
     '<div class="tp-row">' +
     '<label class="field inline"><span>Mentalidad</span><select id="tp-mentality">' +
       ['defensive', 'balanced', 'attacking'].map(m =>
