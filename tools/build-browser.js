@@ -26,6 +26,7 @@ const MODULES = [
   'server/engine/market.js',
   'server/engine/sponsors.js',
   'server/engine/skills.js',
+  'server/engine/medical.js',
   'server/engine/game.js',
   'server/auth-core.js',
   'server/auth-browser.js',

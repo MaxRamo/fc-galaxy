@@ -37,6 +37,7 @@ function snapshot(state) {
     sponsorOffers: state.sponsorOffers || [],
     countries: require('./engine/names').COUNTRIES.map(c => ({ code: c.code, name: c.name, flag: c.flag })),
     skillTrees: require('./engine/skills').treesByPosition(),
+    treatments: require('./engine/medical').TREATMENTS,
     pendingMatch: state.pendingMatch,
     lastResults: state.lastResults.slice(0, 10),
     seasonAwards: state.seasonAwards,
@@ -275,6 +276,13 @@ function createRoutes({ getState, setState, store }) {
       if (!result.ok) throw new ApiError(400, result.reason);
       store.save(state);
       return { ok: true, message: player.name + ' ha desbloqueado: ' + result.skill.name, snapshot: snapshot(state) };
+    },
+
+    'POST /api/player/treat': (body) => {
+      const state = ensureState();
+      const result = require('./engine/medical').treatPlayer(state, body.playerId, body.treatment);
+      store.save(state);
+      return { ...result, snapshot: snapshot(state) };
     },
 
     'POST /api/sponsors/negotiate': (body) => {
