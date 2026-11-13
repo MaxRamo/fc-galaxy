@@ -850,8 +850,11 @@ input[type="color"] { height: 42px; padding: 4px; cursor: pointer; }
 .skill-head h3 { margin: 0; }
 .skill-points { font-size: var(--fs-sm); color: var(--text-dim); }
 .skill-points strong { color: var(--accent); font-size: var(--fs-lg); }
+.skill-title { display: flex; align-items: center; gap: 8px; }
+.icon-svg { color: var(--accent); flex-shrink: 0; }
 .skill-tiers { display: flex; flex-direction: column; gap: var(--s2); margin-top: var(--s2); }
 .skill-tier { display: grid; grid-template-columns: 64px 1fr; gap: var(--s2); align-items: start; }
+.skill-tier-nodes { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .skill-tier-label {
   font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-faint);
   padding-top: 10px;
@@ -859,9 +862,10 @@ input[type="color"] { height: 42px; padding: 4px; cursor: pointer; }
 .skill-node {
   display: flex; justify-content: space-between; gap: var(--s2); align-items: center;
   border: 1px solid var(--border); border-radius: var(--radius-sm);
-  padding: var(--s2) var(--s3); margin-bottom: 6px; background: var(--bg-3);
+  padding: var(--s2) var(--s3); background: var(--bg-3);
   transition: border-color var(--ease), opacity var(--ease);
 }
+.skill-info { flex: 1; min-width: 0; }
 .skill-node strong { font-size: var(--fs-md); }
 .skill-node .hint-line { margin: 2px 0 0; }
 .skill-node.unlocked { border-left: 3px solid var(--ok); }

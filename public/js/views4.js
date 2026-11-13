@@ -79,7 +79,7 @@ function viewClub(root) {
     '<span style="display:inline-block;width:12px;height:12px;background:' + esc(club.secondaryColor) + ';border-radius:3px;vertical-align:middle"></span></p></div></div>' +
     '<p class="hint-line">Reputaci\u00f3n: <strong>' + Math.round(club.reputation) + '/95</strong> \u00b7 Afici\u00f3n: <strong>' + (club.fanbase / 1000000).toFixed(2) + 'M</strong></p>' +
     '<p class="hint-line">Patrocinador: <strong>' + esc(club.sponsor.name) + '</strong> (' + fmtMoney(club.sponsor.income) + ' FCG/semana)</p>' +
-    '<button class="btn secondary small" id="btn-edit-identity">\U0001f3a8 Editar escudo y camiseta</button>' +
+    '<button class="btn secondary small" id="btn-edit-identity"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" style="vertical-align:-2px;margin-right:5px"><path d="M12 3a9 9 0 0 0 0 18c1.4 0 2.2-.9 2.2-2 0-.6-.3-1-.6-1.4-.3-.4-.6-.8-.6-1.4 0-1.1.9-2 2-2h2.4A4.6 4.6 0 0 0 21 9.8C20.4 6 16.6 3 12 3Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="7.5" cy="10.5" r="1.3" fill="currentColor"/><circle cx="11" cy="7.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.3" fill="currentColor"/></svg>Editar escudo y camiseta</button>' +
     '</div>';
 
   html += '<div class="card"><h2>Estadio</h2>' +

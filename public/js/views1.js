@@ -201,15 +201,22 @@ function radarSvg(p) {
   return svg;
 }
 
+const ICON_SKILL_TREE = '<svg class="icon-svg" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">' +
+  '<path d="M12 7v4.2M12 11.2 6.2 16.6M12 11.2l5.8 5.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>' +
+  '<circle cx="12" cy="4.6" r="2.5" fill="currentColor"/>' +
+  '<circle cx="5.2" cy="18.6" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>' +
+  '<circle cx="18.8" cy="18.6" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>' +
+  '</svg>';
+
 function skillTreeHtml(p) {
   const tree = (S.skillTrees || {})[p.pos] || [];
   const points = p.skillPoints || 0;
   let html = '<div class="skill-tree"><div class="skill-head">' +
-    '<h3>\ud83c\udf31 \u00c1rbol de habilidades</h3>' +
+    '<h3 class="skill-title">' + ICON_SKILL_TREE + '\u00c1rbol de habilidades</h3>' +
     '<span class="skill-points">Puntos: <strong>' + points + '</strong></span></div>' +
     '<div class="skill-tiers">';
   for (const tier of [1, 2, 3]) {
-    html += '<div class="skill-tier"><span class="skill-tier-label">Nivel ' + tier + '</span>';
+    html += '<div class="skill-tier"><span class="skill-tier-label">Nivel ' + tier + '</span><div class="skill-tier-nodes">';
     for (const sk of tree.filter(x => x.tier === tier)) {
       const unlocked = (p.skills || []).includes(sk.id);
       const missing = (sk.requires || []).filter(r => !(p.skills || []).includes(r));
@@ -225,7 +232,7 @@ function skillTreeHtml(p) {
         (state === 'available' ? '<button class="btn small" data-unlock="' + sk.id + '">Desbloquear</button>' : '') +
         '</div></div>';
     }
-    html += '</div>';
+    html += '</div></div>';
   }
   html += '</div><p class="hint-line">Gana puntos entrenando (mejoras de atributos) y jugando partidos (nota \u2265 7.5 o gol).</p></div>';
   return html;
