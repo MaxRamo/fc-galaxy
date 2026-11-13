@@ -270,6 +270,8 @@ input[type="color"] { height: 42px; padding: 4px; cursor: pointer; }
 .color-row label.field { flex: 1; }
 .filter-row { display: flex; gap: var(--s3); flex-wrap: wrap; margin-bottom: var(--s4); }
 .filter-row .field.inline { min-width: 140px; }
+.range-pair { display: flex; gap: 6px; }
+.range-pair input { width: 70px; }
 
 /* ---------- Tablas ---------- */
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radius-sm); }

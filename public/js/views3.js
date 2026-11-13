@@ -3,7 +3,7 @@
 /* ================= FC Galaxy — vistas: mercado y cantera ================= */
 
 let marketTab = 'search';
-let marketFilters = { pos: '', maxPrice: '', sort: 'value' };
+let marketFilters = { pos: '', maxPrice: '', minAge: '', maxAge: '', country: '', minOvr: '', name: '', sort: 'value' };
 
 function viewMarket(root) {
   const tabs = [
@@ -39,20 +39,40 @@ function renderMarketSearch(body) {
   let listings = (S.market.listings || []).filter(l => l.sellerClubId !== S.userClubId && S.players[l.playerId]);
   if (marketFilters.pos) listings = listings.filter(l => S.players[l.playerId].pos === marketFilters.pos);
   if (marketFilters.maxPrice) listings = listings.filter(l => l.price <= Number(marketFilters.maxPrice));
+  if (marketFilters.minAge) listings = listings.filter(l => S.players[l.playerId].age >= Number(marketFilters.minAge));
+  if (marketFilters.maxAge) listings = listings.filter(l => S.players[l.playerId].age <= Number(marketFilters.maxAge));
+  if (marketFilters.country) listings = listings.filter(l => S.players[l.playerId].nationality === marketFilters.country);
+  if (marketFilters.minOvr) listings = listings.filter(l => S.players[l.playerId].overall >= Number(marketFilters.minOvr));
+  if (marketFilters.name) {
+    const q = marketFilters.name.trim().toLowerCase();
+    if (q) listings = listings.filter(l => S.players[l.playerId].name.toLowerCase().includes(q));
+  }
   listings.sort((a, b) => marketFilters.sort === 'price' ? a.price - b.price :
     marketFilters.sort === 'overall' ? S.players[b.playerId].overall - S.players[a.playerId].overall :
+    marketFilters.sort === 'age' ? S.players[a.playerId].age - S.players[b.playerId].age :
     S.players[b.playerId].value - S.players[a.playerId].value);
 
+  const countries = S.countries || [];
   let html = '<div class="filter-row">' +
+    '<label class="field inline"><span>Buscar</span><input type="text" id="mf-name" value="' + esc(marketFilters.name) + '" placeholder="Nombre del jugador"></label>' +
     '<label class="field inline"><span>Posici\u00f3n</span><select id="mf-pos"><option value="">Todas</option>' +
     ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'].map(p =>
       '<option value="' + p + '"' + (marketFilters.pos === p ? ' selected' : '') + '>' + p + '</option>').join('') +
     '</select></label>' +
+    '<label class="field inline"><span>Nacionalidad</span><select id="mf-country"><option value="">Todas</option>' +
+    countries.map(c =>
+      '<option value="' + c.code + '"' + (marketFilters.country === c.code ? ' selected' : '') + '>' + c.flag + ' ' + esc(c.name) + '</option>').join('') +
+    '</select></label>' +
+    '<label class="field inline"><span>Edad m\u00edn \u2013 m\u00e1x</span><span class="range-pair">' +
+    '<input type="number" id="mf-minage" min="14" max="45" value="' + marketFilters.minAge + '" placeholder="16">' +
+    '<input type="number" id="mf-maxage" min="14" max="45" value="' + marketFilters.maxAge + '" placeholder="38"></span></label>' +
+    '<label class="field inline"><span>Media m\u00edn.</span><input type="number" id="mf-minovr" min="20" max="99" value="' + marketFilters.minOvr + '" placeholder="40"></label>' +
     '<label class="field inline"><span>Precio m\u00e1x. (M FCG)</span><input type="number" id="mf-max" min="0" step="0.5" value="' + marketFilters.maxPrice + '" placeholder="Sin l\u00edmite"></label>' +
     '<label class="field inline"><span>Orden</span><select id="mf-sort">' +
     '<option value="value"' + (marketFilters.sort === 'value' ? ' selected' : '') + '>Valoraci\u00f3n</option>' +
     '<option value="overall"' + (marketFilters.sort === 'overall' ? ' selected' : '') + '>Media</option>' +
     '<option value="price"' + (marketFilters.sort === 'price' ? ' selected' : '') + '>Precio</option>' +
+    '<option value="age"' + (marketFilters.sort === 'age' ? ' selected' : '') + '>Edad (menor)</option>' +
     '</select></label></div>';
 
   if (!listings.length) {
@@ -62,10 +82,11 @@ function renderMarketSearch(body) {
     for (const l of listings) {
       const p = S.players[l.playerId];
       const seller = S.clubs[l.sellerClubId];
+      const ctry = countries.find(c => c.code === p.nationality);
       const afford = club.budget >= l.price;
       html += '<div class="listing-card">' +
         '<div class="lc-head">' + posTag(p.pos) + '<strong>' + esc(p.name) + '</strong>' + ovrBadge(p.overall) + '</div>' +
-        '<p class="lc-meta">' + p.age + ' a\u00f1os \u00b7 Potencial ' + potentialText(p) + '</p>' +
+        '<p class="lc-meta">' + (ctry ? ctry.flag + ' ' : '') + p.age + ' a\u00f1os \u00b7 Potencial ' + potentialText(p) + '</p>' +
         '<p class="lc-meta">Vende: ' + esc(seller ? seller.name : '?') + ' \u00b7 caduca S' + l.expiresWeek + '</p>' +
         '<p class="lc-price">' + fmtMoney(l.price) + ' FCG</p>' +
         '<div class="lc-actions">' +
@@ -78,14 +99,25 @@ function renderMarketSearch(body) {
   body.innerHTML = html;
 
   const applyFilters = () => {
+    marketFilters.name = document.getElementById('mf-name').value;
     marketFilters.pos = document.getElementById('mf-pos').value;
+    marketFilters.country = document.getElementById('mf-country').value;
+    marketFilters.minAge = document.getElementById('mf-minage').value;
+    marketFilters.maxAge = document.getElementById('mf-maxage').value;
+    marketFilters.minOvr = document.getElementById('mf-minovr').value;
     marketFilters.maxPrice = document.getElementById('mf-max').value;
     marketFilters.sort = document.getElementById('mf-sort').value;
     renderMarketSearch(body);
   };
-  ['mf-pos', 'mf-max', 'mf-sort'].forEach(id => {
+  ['mf-pos', 'mf-max', 'mf-sort', 'mf-country', 'mf-minage', 'mf-maxage', 'mf-minovr'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('change', applyFilters);
+  });
+  const nameEl = document.getElementById('mf-name');
+  if (nameEl) nameEl.addEventListener('input', () => {
+    marketFilters.name = nameEl.value;
+    clearTimeout(nameEl._t);
+    nameEl._t = setTimeout(() => renderMarketSearch(body), 250);
   });
 
   body.querySelectorAll('[data-buy]').forEach(el =>

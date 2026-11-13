@@ -1,7 +1,7 @@
 'use strict';
 
 const { Rng } = require('./rng');
-const { CITIES, CLUB_SUFFIX, SPONSOR_NAMES, randomName, countryOf, DEFAULT_COUNTRY } = require('./names');
+const { COUNTRIES, CITIES, CLUB_SUFFIX, SPONSOR_NAMES, randomName, countryOf, DEFAULT_COUNTRY } = require('./names');
 const { generatePlayer, computeValue, clamp } = require('./player');
 
 const CREST_SHAPES = ['shield', 'circle', 'hex'];
@@ -27,13 +27,18 @@ const SQUAD_TEMPLATE = [
   'ST', 'ST', 'ST'
 ];
 
+function foreignNat(rng, home) {
+  const codes = COUNTRIES.map(c => c.code).filter(x => x !== home);
+  return rng.pick(codes);
+}
+
 function generateClubSquad(rng, level, season, country) {
   const c = country || DEFAULT_COUNTRY;
   const squad = [];
   for (const pos of SQUAD_TEMPLATE) {
     const ageRoll = rng.float();
     const age = ageRoll < 0.22 ? rng.int(17, 20) : ageRoll < 0.62 ? rng.int(21, 27) : ageRoll < 0.88 ? rng.int(28, 31) : rng.int(32, 36);
-    const nat = rng.chance(0.18) ? null : c;
+    const nat = rng.chance(0.18) ? foreignNat(rng, c) : c;
     const p = generatePlayer(rng, { pos, age, level: level + rng.range(-4, 4), country: nat || undefined });
     p.contract.until = season + rng.int(1, 4);
     squad.push(p);
