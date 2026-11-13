@@ -371,7 +371,6 @@ function renderShell() {
       '<nav class="nav">' + navHtml() + '</nav>' +
       '<div class="sidebar-footer">Temporada ' + S.season + ' · Semana ' + S.week + '<br>Blockchain: <strong style="color:var(--purple)">SIMULADA</strong>' +
       (User ? '<br>👤 ' + esc(User.username) + ' <button class="btn secondary small" id="btn-recovery" style="margin-top:6px">🔑 Recuperación</button> <button class="btn secondary small" id="btn-logout" style="margin-top:6px">Salir</button>' : '') + '</div>' +
- S.week + '<br>Blockchain: <strong style="color:var(--purple)">SIMULADA</strong></div>' +
     '</aside>' +
     '<div class="main">' +
       '<header class="topbar">' +
