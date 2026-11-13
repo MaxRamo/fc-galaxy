@@ -162,6 +162,7 @@ const NAV = [
   { id: 'squad', icon: '👥', label: 'Plantilla' },
   { id: 'tactics', icon: '📋', label: 'Tácticas' },
   { id: 'training', icon: '💪', label: 'Entrenam.' },
+  { id: 'infirmary', icon: '🏥', label: 'Enfermería' },
   { id: 'league', icon: '🏆', label: 'Liga' },
   { id: 'market', icon: '💰', label: 'Mercado' },
   { id: 'youth', icon: '🌱', label: 'Cantera' },
@@ -402,7 +403,7 @@ function renderShell() {
   const views = {
     dashboard: viewDashboard, squad: viewSquad, tactics: viewTactics, training: viewTraining,
     league: viewLeague, market: viewMarket, youth: viewYouth, finance: viewFinance,
-    sponsors: viewSponsors, chain: viewChain, club: viewClub, inbox: viewInbox
+    sponsors: viewSponsors, chain: viewChain, club: viewClub, inbox: viewInbox, infirmary: viewInfirmary
   };
   (views[route] || viewDashboard)(document.getElementById('view'));
 }

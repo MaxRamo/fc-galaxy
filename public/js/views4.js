@@ -79,7 +79,7 @@ function viewClub(root) {
     '<span style="display:inline-block;width:12px;height:12px;background:' + esc(club.secondaryColor) + ';border-radius:3px;vertical-align:middle"></span></p></div></div>' +
     '<p class="hint-line">Reputaci\u00f3n: <strong>' + Math.round(club.reputation) + '/95</strong> \u00b7 Afici\u00f3n: <strong>' + (club.fanbase / 1000000).toFixed(2) + 'M</strong></p>' +
     '<p class="hint-line">Patrocinador: <strong>' + esc(club.sponsor.name) + '</strong> (' + fmtMoney(club.sponsor.income) + ' FCG/semana)</p>' +
-    '<button class="btn secondary small" id="btn-edit-identity">\U0001f3a8 Editar escudo y camiseta</button>' +
+    '<button class="btn secondary small" id="btn-edit-identity"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" style="vertical-align:-2px;margin-right:5px"><path d="M12 3a9 9 0 0 0 0 18c1.4 0 2.2-.9 2.2-2 0-.6-.3-1-.6-1.4-.3-.4-.6-.8-.6-1.4 0-1.1.9-2 2-2h2.4A4.6 4.6 0 0 0 21 9.8C20.4 6 16.6 3 12 3Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="7.5" cy="10.5" r="1.3" fill="currentColor"/><circle cx="11" cy="7.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.3" fill="currentColor"/></svg>Editar escudo y camiseta</button>' +
     '</div>';
 
   html += '<div class="card"><h2>Estadio</h2>' +
@@ -298,6 +298,73 @@ function viewSponsors(root) {
       } catch (err) {
         toast(err.message, 'error');
         render();
+      }
+    }));
+  bindNav(root);
+}
+
+function treatmentQuoteLocal(injuryWeeks, t, medicalLevel) {
+  const reduction = Math.min(Math.max(1, injuryWeeks), t.weeks + (medicalLevel >= 5 ? 1 : 0));
+  const discount = 1 - 0.05 * (Math.max(1, Math.min(6, medicalLevel)) - 1);
+  return { reduction, cost: Math.round(t.costPerWeek * reduction * discount) };
+}
+
+function viewInfirmary(root) {
+  const club = userClub();
+  const med = club.facilities.medical;
+  const injured = club.squad.map(id => S.players[id]).filter(p => p && p.injury);
+  const treatments = S.treatments || [
+    { id: 'physio', name: 'Fisioterapia', weeks: 1, costPerWeek: 150000 },
+    { id: 'intensive', name: 'Tratamiento intensivo', weeks: 2, costPerWeek: 300000 },
+    { id: 'surgery', name: 'Cirug\u00eda expr\u00e9s', weeks: 4, costPerWeek: 520000 }
+  ];
+
+  let html = '<h1 class="view-title">Enfermer\u00eda</h1>' +
+    '<div class="grid grid-3">' +
+    '<div class="card stat-card"><h3>Lesionados</h3><p class="big-num" style="color:' + (injured.length ? 'var(--warn)' : 'var(--ok)') + '">' + injured.length + '</p>' +
+    '<p class="hint-line">' + (injured.length ? 'Bajas a tratamiento en tu plantilla' : 'Toda la plantilla est\u00e1 a disposici\u00f3n') + '</p></div>' +
+    '<div class="card stat-card"><h3>Centro m\u00e9dico</h3><p class="big-num">Nivel ' + med + '/6</p>' +
+    '<p class="hint-line">' + (med >= 5 ? 'Las recuperaciones aceleran +1 semana extra por tratamiento' : 'A nivel 5 los tratamientos aceleran +1 semana extra') + '</p></div>' +
+    '<div class="card stat-card"><h3>Descuento sanitario</h3><p class="big-num" style="color:var(--accent)">-' + (5 * (med - 1)) + '%</p>' +
+    '<p class="hint-line">Coste de tratamientos seg\u00fan el nivel del centro m\u00e9dico</p></div>' +
+    '</div>';
+
+  html += '<div class="card"><h2>Jugadores lesionados</h2>';
+  if (!injured.length) {
+    html += '<p class="empty-state">Ning\u00fan jugador lesionado. La plantilla est\u00e1 sana y disponible para el once.</p>';
+  } else {
+    for (const p of injured) {
+      html += '<div class="infirmary-row" data-injured="' + p.id + '">' +
+        '<div class="infirmary-info">' + ovrBadge(p.overall) + ' ' + posTag(p.pos) +
+        ' <strong>' + esc(p.name) + '</strong>' +
+        '<p class="hint-line">\ud83d\ude91 ' + esc(p.injury.type) + ' \u00b7 <strong>' + p.injury.weeks + ' sem.</strong> restantes' +
+        ' \u00b7 Moral: ' + moraleEmoji(p.morale) + ' ' + moraleLabel(p.morale) + '</p></div>' +
+        '<div class="infirmary-treatments">';
+      for (const t of treatments) {
+        const q = treatmentQuoteLocal(p.injury.weeks, t, med);
+        const afford = club.budget >= q.cost;
+        html += '<button class="btn ' + (afford ? '' : 'secondary') + ' small" data-treat="' + p.id + '" data-tid="' + t.id + '"' + (afford ? '' : ' disabled') + '>' +
+          esc(t.name) + ' \u00b7 \u2212' + q.reduction + ' sem \u00b7 ' + fmtMoney(q.cost) + ' FCG</button>';
+      }
+      html += '</div></div>';
+    }
+    html += '<p class="hint-line">Los tratamientos reducen la baja al instante. Sin tratamiento, los jugadores recuperan cada semana ' +
+      (1 + Math.floor(med / 2.5)) + ' semana(s) de baja gracias al centro m\u00e9dico.</p>';
+  }
+  html += '</div>';
+
+  root.innerHTML = html;
+  root.querySelectorAll('[data-treat]').forEach(el =>
+    el.addEventListener('click', async () => {
+      el.classList.add('loading'); el.disabled = true;
+      try {
+        const r = await API.post('/api/player/treat', { playerId: el.dataset.treat, treatment: el.dataset.tid });
+        S = r.snapshot || S;
+        toast(r.message || 'Tratamiento aplicado');
+        render();
+      } catch (err) {
+        toast(err.message, 'error');
+        el.classList.remove('loading'); el.disabled = false;
       }
     }));
   bindNav(root);

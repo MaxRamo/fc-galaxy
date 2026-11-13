@@ -35,7 +35,7 @@ tamaño máximo típico de localStorage (~5 MB, equivalente a varias temporadas)
 Otros comandos:
 
 ```bash
-npm test                     # 21 tests: blockchain, motor, mercado, temporada completa, persistencia, modo navegador
+npm test                     # 46 tests: blockchain, motor, mercado, enfermería, temporada completa, persistencia, modo navegador
 node tools/build-browser.js  # regenerar el bundle del navegador tras cambiar el motor
 ```
 
@@ -62,6 +62,7 @@ server/
     finance.js         ledger contable, ingresos/gastos semanales, instalaciones
     youth.js           cantera: promesas semanales y promoción
     market.js          publicaciones, pujas IA, ofertas directas, negociación
+    medical.js         enfermería: tratamientos de recuperación acelerada
     game.js            orquestador: ÚNICO puente entre juego y blockchain
 
 public/                ← frontend SPA vanilla (sin framework)
